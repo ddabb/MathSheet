@@ -17,6 +17,8 @@ export class BlankProblem {
   op: string;
   blankPos: BlankPos;
   blankValue: number;
+  /** 完整式结果（M2 SheetModel 答案文本推导用，物化保持单一事实源）。 */
+  answerValue: number;
   text: string;
 
   constructor(p: Problem, blankPos: BlankPos) {
@@ -25,6 +27,7 @@ export class BlankProblem {
     this.op = ProblemGen.keySymbolOf(p.op);
     this.blankPos = blankPos;
     this.blankValue = blankPos === 'a' ? p.a : blankPos === 'b' ? p.b : p.answer;
+    this.answerValue = p.answer;
     const left: string = blankPos === 'a' ? '\u25a1' : String(p.a);
     const right: string = blankPos === 'b' ? '\u25a1' : String(p.b);
     const result: string = blankPos === 'answer' ? '\u25a1' : String(p.answer);

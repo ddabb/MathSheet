@@ -17,4 +17,5 @@
 .codegenie/
 .verify_tmp/
 .ui_shots/
+/keystore/
 __pycache__/

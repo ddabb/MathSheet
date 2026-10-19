@@ -2,15 +2,15 @@
   "string": [
     {
       "name": "module_desc",
-      "value": "口算题卡主模块"
+      "value": "如意口算主模块"
     },
     {
       "name": "EntryAbility_desc",
-      "value": "口算题卡应用入口"
+      "value": "如意口算应用入口"
     },
     {
       "name": "EntryAbility_label",
-      "value": "口算题卡"
+      "value": "如意口算"
     },
     {
       "name": "app_tagline",
@@ -25,18 +25,6 @@
       "value": "零网络权限 · 全离线"
     },
     {
-      "name": "scaffold_title",
-      "value": "M0 工程脚手架"
-    },
-    {
-      "name": "scaffold_desc",
-      "value": "核心模块按开发计划分批落地，当前为占位首页。"
-    },
-    {
-      "name": "plan_note",
-      "value": "开发计划、里程碑与验收标准见 docs/ 目录。"
-    },
-    {
       "name": "version_label",
       "value": "版本"
     },
@@ -45,32 +33,96 @@
       "value": "v1.0.0"
     },
     {
-      "name": "mod_presets",
-      "value": "年级预设与题型（一至三年级）"
+      "name": "grade_label",
+      "value": "年级"
     },
     {
-      "name": "mod_engine",
-      "value": "构造式生成引擎（无限题量）"
+      "name": "grade_g1",
+      "value": "一年级"
     },
     {
-      "name": "mod_sets",
-      "value": "多套同构卷（A/B/C/D 防抄袭）"
+      "name": "grade_g2",
+      "value": "二年级"
     },
     {
-      "name": "mod_layout",
-      "value": "A4 300dpi 版面与打印导出"
+      "name": "grade_g3",
+      "value": "三年级"
     },
     {
-      "name": "mod_daily",
-      "value": "每日一练与连续打卡"
+      "name": "type_label",
+      "value": "题型（可多选）"
     },
     {
-      "name": "mod_mistake",
-      "value": "错题本与重练闭环"
+      "name": "count_label",
+      "value": "题数"
     },
     {
-      "name": "mod_library",
-      "value": "卷库与批改"
+      "name": "columns_label",
+      "value": "列数"
+    },
+    {
+      "name": "advanced_label",
+      "value": "高级"
+    },
+    {
+      "name": "header_toggle_label",
+      "value": "题头（姓名 / 得分栏）"
+    },
+    {
+      "name": "answer_page_toggle_label",
+      "value": "答案页（末页）"
+    },
+    {
+      "name": "generate_button",
+      "value": "生成题卡"
+    },
+    {
+      "name": "pick_type_first",
+      "value": "请先选择至少一种题型"
+    },
+    {
+      "name": "released_toast",
+      "value": "题型可行域不足，已放行 %d 道重复题"
+    },
+    {
+      "name": "preview_title",
+      "value": "预览"
+    },
+    {
+      "name": "change_batch",
+      "value": "换一批"
+    },
+    {
+      "name": "back_label",
+      "value": "返回"
+    },
+    {
+      "name": "answer_sheet_title",
+      "value": "参考答案"
+    },
+    {
+      "name": "answer_badge",
+      "value": "答案"
+    },
+    {
+      "name": "header_fields",
+      "value": "姓名：________　　班级：________　　日期：________　　用时：________　　得分：________"
+    },
+    {
+      "name": "page_label",
+      "value": "第 %1$d 页 / 共 %2$d 页"
+    },
+    {
+      "name": "sheet_title_g1",
+      "value": "一年级口算练习"
+    },
+    {
+      "name": "sheet_title_g2",
+      "value": "二年级口算练习"
+    },
+    {
+      "name": "sheet_title_g3",
+      "value": "三年级口算练习"
     }
   ]
 }

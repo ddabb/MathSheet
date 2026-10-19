@@ -6,10 +6,12 @@
  */
 
 import { Rng } from './Rng';
-import { ProblemGen, ProblemSpec } from './ProblemGen';
+import { ProblemGen, ProblemSpec, Problem } from './ProblemGen';
 import { Dedup, DedupResult, Collected } from './Dedup';
 import { MixedGen, MixedSpec, MixedProblem } from './MixedGen';
 import { FillBlank, BlankProblem } from './FillBlank';
+import { GradePresets, PresetEntry } from './GradePresets';
+import { SheetItem } from './SheetModel';
 
 export class SheetGen {
   /** 单卷：同种子复现的基石。 */
@@ -39,5 +41,45 @@ export class SheetGen {
     return Dedup.collectBy(count,
       () => FillBlank.fromProblem(ProblemGen.generate(spec, rng), rng, true),
       (b: BlankProblem) => b.key());
+  }
+
+  /**
+   * M2 多预设混编（计划 §4.1 题型多选）：勾选的题型轮转交织成一卷
+   * （各题型交错分布，避免同题型扎堆）；同参数同种子 = 同卷。
+   * entries 由调用方保证非空（表完整性见 GradePresets 测试）。
+   */
+  static buildMultiSheet(entries: PresetEntry[], seed: number, count: number): Collected<SheetItem> {
+    const rng: Rng = new Rng(seed);
+    const n: number = entries.length;
+    let turn: number = 0;
+    return Dedup.collectBy(count,
+      () => {
+        const entry: PresetEntry = entries[turn % n];
+        turn++;
+        return SheetGen.genItemForEntry(entry, rng);
+      },
+      (item: SheetItem) => item.key);
+  }
+
+  /** 单表目 → SheetItem（single/mixed/fill 三态分发；非法表项退化为 10 以内加法兜底）。 */
+  private static genItemForEntry(entry: PresetEntry, rng: Rng): SheetItem {
+    if (entry.kind === 'mixed') {
+      const ms: MixedSpec | null = entry.mixed;
+      if (ms !== null) {
+        return SheetItem.fromMixed(MixedGen.generate(ms, rng));
+      }
+    } else if (entry.kind === 'fill') {
+      const spec: ProblemSpec | null = GradePresets.resolveSpec(entry);
+      if (spec !== null) {
+        return SheetItem.fromBlank(FillBlank.fromProblem(ProblemGen.generate(spec, rng), rng, true));
+      }
+    } else {
+      const spec: ProblemSpec | null = entry.spec;
+      if (spec !== null) {
+        const p: Problem = ProblemGen.generate(spec, rng);
+        return SheetItem.fromProblem(p);
+      }
+    }
+    return SheetItem.fromProblem(ProblemGen.generate(new ProblemSpec('add', 1, 10, true), rng));
   }
 }

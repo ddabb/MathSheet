@@ -2,15 +2,15 @@
   "string": [
     {
       "name": "module_desc",
-      "value": "Main module of MathSheet"
+      "value": "Main module of Ruyi Math"
     },
     {
       "name": "EntryAbility_desc",
-      "value": "MathSheet app entry"
+      "value": "Ruyi Math app entry"
     },
     {
       "name": "EntryAbility_label",
-      "value": "MathSheet"
+      "value": "Ruyi Math"
     },
     {
       "name": "app_tagline",
@@ -25,18 +25,6 @@
       "value": "No network permission · Fully offline"
     },
     {
-      "name": "scaffold_title",
-      "value": "M0 scaffold"
-    },
-    {
-      "name": "scaffold_desc",
-      "value": "Core modules land in batches per the dev plan. This is a placeholder home page."
-    },
-    {
-      "name": "plan_note",
-      "value": "Dev plan, milestones, and acceptance criteria live in docs/."
-    },
-    {
       "name": "version_label",
       "value": "Version"
     },
@@ -45,32 +33,96 @@
       "value": "v1.0.0"
     },
     {
-      "name": "mod_presets",
-      "value": "Grade presets and problem types (grades 1-3)"
+      "name": "grade_label",
+      "value": "Grade"
     },
     {
-      "name": "mod_engine",
-      "value": "Constructive generation engine (unlimited problems)"
+      "name": "grade_g1",
+      "value": "Grade 1"
     },
     {
-      "name": "mod_sets",
-      "value": "Parallel paper sets (A/B/C/D anti-copy)"
+      "name": "grade_g2",
+      "value": "Grade 2"
     },
     {
-      "name": "mod_layout",
-      "value": "A4 300dpi layout and print export"
+      "name": "grade_g3",
+      "value": "Grade 3"
     },
     {
-      "name": "mod_daily",
-      "value": "Daily practice and streak check-in"
+      "name": "type_label",
+      "value": "Types (multi-select)"
     },
     {
-      "name": "mod_mistake",
-      "value": "Mistake book and re-practice loop"
+      "name": "count_label",
+      "value": "Problems"
     },
     {
-      "name": "mod_library",
-      "value": "Paper library and grading"
+      "name": "columns_label",
+      "value": "Columns"
+    },
+    {
+      "name": "advanced_label",
+      "value": "Advanced"
+    },
+    {
+      "name": "header_toggle_label",
+      "value": "Header (name / score)"
+    },
+    {
+      "name": "answer_page_toggle_label",
+      "value": "Answer key (last)"
+    },
+    {
+      "name": "generate_button",
+      "value": "Generate Sheet"
+    },
+    {
+      "name": "pick_type_first",
+      "value": "Select at least one problem type"
+    },
+    {
+      "name": "released_toast",
+      "value": "Limited feasible space, %d duplicate(s) released"
+    },
+    {
+      "name": "preview_title",
+      "value": "Preview"
+    },
+    {
+      "name": "change_batch",
+      "value": "New Batch"
+    },
+    {
+      "name": "back_label",
+      "value": "Back"
+    },
+    {
+      "name": "answer_sheet_title",
+      "value": "Answer Key"
+    },
+    {
+      "name": "answer_badge",
+      "value": "Key"
+    },
+    {
+      "name": "header_fields",
+      "value": "Name: ________  Class: ________  Date: ________  Time: ________  Score: ________"
+    },
+    {
+      "name": "page_label",
+      "value": "Page %1$d of %2$d"
+    },
+    {
+      "name": "sheet_title_g1",
+      "value": "Grade 1 Oral Math Practice"
+    },
+    {
+      "name": "sheet_title_g2",
+      "value": "Grade 2 Oral Math Practice"
+    },
+    {
+      "name": "sheet_title_g3",
+      "value": "Grade 3 Oral Math Practice"
     }
   ]
 }
