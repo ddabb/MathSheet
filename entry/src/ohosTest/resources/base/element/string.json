@@ -1,0 +1,12 @@
+{
+  "string": [
+    {
+      "name": "module_test_desc",
+      "value": "test module description"
+    },
+    {
+      "name": "module_test_label",
+      "value": "test module label"
+    }
+  ]
+}

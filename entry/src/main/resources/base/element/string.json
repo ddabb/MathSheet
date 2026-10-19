@@ -1,0 +1,76 @@
+{
+  "string": [
+    {
+      "name": "module_desc",
+      "value": "口算题卡主模块"
+    },
+    {
+      "name": "EntryAbility_desc",
+      "value": "口算题卡应用入口"
+    },
+    {
+      "name": "EntryAbility_label",
+      "value": "口算题卡"
+    },
+    {
+      "name": "app_tagline",
+      "value": "鸿蒙原生小学口算题卡生成器"
+    },
+    {
+      "name": "buyout_note",
+      "value": "一次买断 · 无广告 · 无订阅"
+    },
+    {
+      "name": "offline_note",
+      "value": "零网络权限 · 全离线"
+    },
+    {
+      "name": "scaffold_title",
+      "value": "M0 工程脚手架"
+    },
+    {
+      "name": "scaffold_desc",
+      "value": "核心模块按开发计划分批落地，当前为占位首页。"
+    },
+    {
+      "name": "plan_note",
+      "value": "开发计划、里程碑与验收标准见 docs/ 目录。"
+    },
+    {
+      "name": "version_label",
+      "value": "版本"
+    },
+    {
+      "name": "version_value",
+      "value": "v1.0.0"
+    },
+    {
+      "name": "mod_presets",
+      "value": "年级预设与题型（一至三年级）"
+    },
+    {
+      "name": "mod_engine",
+      "value": "构造式生成引擎（无限题量）"
+    },
+    {
+      "name": "mod_sets",
+      "value": "多套同构卷（A/B/C/D 防抄袭）"
+    },
+    {
+      "name": "mod_layout",
+      "value": "A4 300dpi 版面与打印导出"
+    },
+    {
+      "name": "mod_daily",
+      "value": "每日一练与连续打卡"
+    },
+    {
+      "name": "mod_mistake",
+      "value": "错题本与重练闭环"
+    },
+    {
+      "name": "mod_library",
+      "value": "卷库与批改"
+    }
+  ]
+}

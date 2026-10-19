@@ -1,0 +1,22 @@
+#!/bin/sh
+# 行数护栏（沿用 PocketToolbox 1.4.7 方法论）：
+# 白名单只减不增，新增/修改文件 <=800 行。查榜/重置白名单：
+#   py -3 scripts/code_stats.py --top 20 / --init-whitelist
+py -3 scripts/code_stats.py --check
+if [ $? -ne 0 ]; then
+  echo ""
+  echo "[pre-commit] 行数护栏未通过，提交被拒绝。"
+  echo "  - 超标新文件请拆分（目标 <=800 行）；"
+  echo "  - 白名单文件不得超过登记上限（scripts/size_whitelist.json，只减不增）。"
+  exit 1
+fi
+
+# 双语资源护栏（base/en）：键集合/占位符一致性校验。
+py -3 scripts/check_strings.py --check
+if [ $? -ne 0 ]; then
+  echo ""
+  echo "[pre-commit] 字符串资源校验未通过，提交被拒绝。"
+  echo "  - base/en 双语 string.json 键集合必须一致；"
+  echo "  - 同键占位符（%s/%d/%N$s/%N$d）双语必须一致。"
+  exit 1
+fi

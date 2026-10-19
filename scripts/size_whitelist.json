@@ -1,0 +1,5 @@
+{
+  "_comment": "行数护栏白名单：只减不增。条目值 = 允许的最大行数；文件拆到 <=900 行后请移除条目；重新生成：py -3 scripts/code_stats.py --init-whitelist",
+  "threshold": 900,
+  "entries": {}
+}
