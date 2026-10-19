@@ -59,6 +59,17 @@ export class Problem {
     this.answer = answer;
     this.relaxed = relaxed;
   }
+
+  /** 规范化键（加/乘交换律归一，如 "23+15"；Dedup.keyOf 委托本方法）。 */
+  key(): string {
+    const sym: string = ProblemGen.keySymbolOf(this.op);
+    if (this.op === 'add' || this.op === 'mul') {
+      const x: number = Math.min(this.a, this.b);
+      const y: number = Math.max(this.a, this.b);
+      return x + sym + y;
+    }
+    return this.a + sym + this.b;
+  }
 }
 
 export class ProblemGen {
@@ -172,6 +183,36 @@ export class ProblemGen {
       case 'add':
       default:
         return ProblemGen.genAdd(spec, rng);
+    }
+  }
+
+  /** 键用符号（去重键/序列化用：ASCII 连字符 + ×÷，与 Dedup 约定一致）。 */
+  static keySymbolOf(op: OpKind): string {
+    switch (op) {
+      case 'sub':
+        return '-';
+      case 'mul':
+        return '\u00d7';
+      case 'div':
+        return '\u00f7';
+      case 'add':
+      default:
+        return '+';
+    }
+  }
+
+  /** 展示用符号（排版层调用：印刷体减号 U+2212，打印质量）。 */
+  static symbolOf(op: OpKind): string {
+    switch (op) {
+      case 'sub':
+        return '\u2212';
+      case 'mul':
+        return '\u00d7';
+      case 'div':
+        return '\u00f7';
+      case 'add':
+      default:
+        return '+';
     }
   }
 }

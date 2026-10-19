@@ -19,29 +19,24 @@ export class DedupResult {
   }
 }
 
+/** 泛化收集结果（M1 混合/填空等非 Problem 题型；duplicates = 放行重复数）。 */
+export class Collected<T> {
+  items: T[];
+  duplicates: number;
+
+  constructor(items: T[], duplicates: number) {
+    this.items = items;
+    this.duplicates = duplicates;
+  }
+}
+
 export class Dedup {
   /** 单题去重尝试上限（达上限放行并计入 duplicates）。 */
   static readonly ATTEMPT_LIMIT: number = 64;
 
-  private static readonly SYMBOLS: Record<string, string> = {
-    add: '+',
-    sub: '-',
-    mul: '\u00d7',
-    div: '\u00f7'
-  };
-
-  /** 规范化键（与展示文本同源的紧凑形式，如 "23+15"）。 */
+  /** 规范化键（委托 Problem.key，保持单一事实源）。 */
   static keyOf(p: Problem): string {
-    let sym: string = Dedup.SYMBOLS[p.op];
-    if (sym === undefined) {
-      sym = '+';
-    }
-    if (p.op === 'add' || p.op === 'mul') {
-      const x: number = Math.min(p.a, p.b);
-      const y: number = Math.max(p.a, p.b);
-      return x + sym + y;
-    }
-    return p.a + sym + p.b;
+    return p.key();
   }
 
   /**
@@ -85,5 +80,31 @@ export class Dedup {
       }
     }
     return new DedupResult(kept, dropped);
+  }
+
+  /**
+   * 泛化生成期去重（M1 混合/填空等非 Problem 题型）：
+   * 语义同 collect，键由调用方 keyOf 给出（题型自带 key() 时传 (x) => x.key()）。
+   */
+  static collectBy<T>(count: number, gen: () => T, keyOf: (item: T) => string): Collected<T> {
+    const seen: Set<string> = new Set<string>();
+    const items: T[] = [];
+    let released: number = 0;
+    for (let n = 0; n < count; n++) {
+      let item: T = gen();
+      let attempts: number = 1;
+      while (seen.has(keyOf(item)) && attempts < Dedup.ATTEMPT_LIMIT) {
+        item = gen();
+        attempts++;
+      }
+      const key: string = keyOf(item);
+      if (seen.has(key)) {
+        released++;
+      } else {
+        seen.add(key);
+      }
+      items.push(item);
+    }
+    return new Collected<T>(items, released);
   }
 }

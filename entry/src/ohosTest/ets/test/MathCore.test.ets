@@ -14,7 +14,11 @@
 import { describe, it, expect } from '@ohos/hypium';
 import { Rng } from '../../../main/ets/core/Rng';
 import { ProblemGen, ProblemSpec, Problem } from '../../../main/ets/core/ProblemGen';
-import { Dedup } from '../../../main/ets/core/Dedup';
+import { Dedup, DedupResult, Collected } from '../../../main/ets/core/Dedup';
+import { MixedGen, MixedSpec, MixedProblem } from '../../../main/ets/core/MixedGen';
+import { FillBlank, BlankProblem } from '../../../main/ets/core/FillBlank';
+import { SheetGen } from '../../../main/ets/core/SheetGen';
+import { GradePresets, PresetEntry } from '../../../main/ets/core/GradePresets';
 
 const BATCH: number = 1000;
 
@@ -58,6 +62,63 @@ function assertProblem(p: Problem, spec: ProblemSpec): void {
     expect(p.answer >= 1).assertTrue();
     expect(p.a >= p.b).assertTrue();
   }
+}
+
+/** 混合题性质断言：恒等式/内层非负/外层项界/结果区间（未放宽时）/括号文本形态。 */
+function assertMixed(m: MixedProblem, spec: MixedSpec): void {
+  const lo: number = Math.min(spec.min, spec.max);
+  const hi: number = Math.max(spec.min, spec.max);
+  const inner: number = spec.op1 === 'add' ? m.a + m.b : spec.op1 === 'sub' ? m.a - m.b : m.a * m.b;
+  const expected: number = spec.op2 === 'add' ? inner + m.c : spec.op2 === 'sub' ? inner - m.c : inner * m.c;
+  expect(m.answer).assertEqual(expected);
+  if (spec.op1 === 'add') {
+    expect(m.a >= 0 && m.b >= 0).assertTrue();
+    expect(m.a + m.b >= Math.min(spec.innerMin, spec.innerMax)).assertTrue();
+    expect(m.a + m.b <= Math.max(spec.innerMin, spec.innerMax)).assertTrue();
+  } else if (spec.op1 === 'sub') {
+    expect(m.a - m.b >= 0).assertTrue();
+    expect(m.a >= Math.min(spec.innerMin, spec.innerMax)).assertTrue();
+    expect(m.a <= Math.max(spec.innerMin, spec.innerMax)).assertTrue();
+    expect(m.b >= 0 && m.b <= m.a).assertTrue();
+  } else {
+    expect(m.a >= 2 && m.a <= spec.factorMax).assertTrue();
+    expect(m.b >= 2 && m.b <= spec.factorMax).assertTrue();
+  }
+  if (spec.op2 === 'add') {
+    expect(m.c >= 0 && m.c <= spec.cMax).assertTrue();
+  } else if (spec.op2 === 'sub') {
+    expect(m.c >= 0 && m.c <= inner).assertTrue();
+    expect(m.answer >= 0).assertTrue();
+  } else {
+    expect(m.c >= 2 && m.c <= spec.cFactorMax).assertTrue();
+  }
+  if (!m.relaxed) {
+    expect(m.answer >= lo && m.answer <= hi).assertTrue();
+  }
+  if (spec.bracket) {
+    expect(m.text.indexOf('(')).assertEqual(0);
+    expect(m.text.indexOf(')') > 0).assertTrue();
+  } else {
+    expect(m.text.indexOf('(') < 0).assertTrue();
+  }
+}
+
+/** 填空题性质断言：挖位/值/文本三态 + 还原恒等式（□ 换回值 = 完整式）。 */
+function assertBlank(b: BlankProblem, base: Problem): void {
+  const sym: string = ProblemGen.keySymbolOf(base.op);
+  const full: string = base.a + sym + base.b + '=' + base.answer;
+  if (b.blankPos === 'a') {
+    expect(b.blankValue).assertEqual(base.a);
+    expect(b.text.indexOf('\u25a1')).assertEqual(0);
+  } else if (b.blankPos === 'b') {
+    expect(b.blankValue).assertEqual(base.b);
+    expect(b.text.indexOf('\u25a1') > 0).assertTrue();
+  } else {
+    expect(b.blankValue).assertEqual(base.answer);
+    expect(b.text.charAt(b.text.length - 1)).assertEqual('\u25a1');
+  }
+  const restored: string = b.text.replace('\u25a1', String(b.blankValue));
+  expect(restored).assertEqual(full);
 }
 
 export default function mathCoreTest() {
@@ -303,6 +364,208 @@ export default function mathCoreTest() {
           }
         }
         expect(same < 30).assertTrue();
+      })
+    })
+
+    describe('MixedGen', () => {
+      it('连加 1000 次性质（和受控 + 恒等式 + 无括号文本）', 0, () => {
+        const spec: MixedSpec = new MixedSpec('add', 'add', false, 2, 30, 1, 10, 10);
+        const rng: Rng = new Rng(201);
+        for (let i = 0; i < BATCH; i++) {
+          assertMixed(MixedGen.generate(spec, rng), spec);
+        }
+      })
+
+      it('连减 1000 次性质（内层非负 + 结果非负硬约束）', 0, () => {
+        const spec: MixedSpec = new MixedSpec('add', 'sub', false, 1, 20, 1, 10, 10);
+        const rng: Rng = new Rng(202);
+        for (let i = 0; i < BATCH; i++) {
+          assertMixed(MixedGen.generate(spec, rng), spec);
+        }
+      })
+
+      it('乘加 1000 次性质（表内因子 + 加减项界）', 0, () => {
+        const spec: MixedSpec = new MixedSpec('mul', 'add', false, 2, 90, 2, 9, 9, 9, 9);
+        const rng: Rng = new Rng(203);
+        for (let i = 0; i < BATCH; i++) {
+          assertMixed(MixedGen.generate(spec, rng), spec);
+        }
+      })
+
+      it('乘减 1000 次性质（结果非负硬约束）', 0, () => {
+        const spec: MixedSpec = new MixedSpec('mul', 'sub', false, 2, 90, 2, 9, 9, 9, 9);
+        const rng: Rng = new Rng(204);
+        for (let i = 0; i < BATCH; i++) {
+          assertMixed(MixedGen.generate(spec, rng), spec);
+        }
+      })
+
+      it('带括号 (a+b)×c 1000 次性质（括号文本 + 因子界）', 0, () => {
+        const spec: MixedSpec = new MixedSpec('add', 'mul', true, 20, 400, 10, 99, 20, 9);
+        const rng: Rng = new Rng(205);
+        for (let i = 0; i < BATCH; i++) {
+          assertMixed(MixedGen.generate(spec, rng), spec);
+        }
+      })
+
+      it('带括号 (a−b)×c 1000 次性质（内层非负）', 0, () => {
+        const spec: MixedSpec = new MixedSpec('sub', 'mul', true, 10, 400, 20, 99, 20, 9);
+        const rng: Rng = new Rng(206);
+        for (let i = 0; i < BATCH; i++) {
+          assertMixed(MixedGen.generate(spec, rng), spec);
+        }
+      })
+
+      it('混合题同种子复现（100 题逐题相等）', 0, () => {
+        const spec: MixedSpec = new MixedSpec('mul', 'add', false, 2, 90, 2, 9, 9, 9, 9);
+        const r1: Rng = new Rng(207);
+        const r2: Rng = new Rng(207);
+        for (let i = 0; i < 100; i++) {
+          expect(MixedGen.generate(spec, r1).key()).assertEqual(MixedGen.generate(spec, r2).key());
+        }
+      })
+    })
+
+    describe('FillBlank', () => {
+      it('填空 1000 次性质（挖位/值/文本三态 + 还原恒等式）', 0, () => {
+        const specs: ProblemSpec[] = [
+          new ProblemSpec('add', 1, 20, false),
+          new ProblemSpec('sub', 1, 100, false, false),
+          new ProblemSpec('mul', 2, 9, false, false, true),
+          new ProblemSpec('div', 2, 81, false, false, false, 9)
+        ];
+        for (const spec of specs) {
+          const rng: Rng = new Rng(301);
+          for (let i = 0; i < BATCH; i++) {
+            const base: Problem = ProblemGen.generate(spec, rng);
+            assertBlank(FillBlank.fromProblem(base, rng, true), base);
+          }
+        }
+      })
+
+      it('只挖操作数模式（allowAnswer=false，1000 次无答案挖空）', 0, () => {
+        const spec: ProblemSpec = new ProblemSpec('add', 1, 20, false);
+        const rng: Rng = new Rng(302);
+        for (let i = 0; i < BATCH; i++) {
+          const base: Problem = ProblemGen.generate(spec, rng);
+          const b: BlankProblem = FillBlank.fromProblem(base, rng, false);
+          expect(b.blankPos === 'a' || b.blankPos === 'b').assertTrue();
+          assertBlank(b, base);
+        }
+      })
+    })
+
+    describe('GradePresets', () => {
+      it('表完整性：id 唯一/年级合法/fillFrom 可解析/规格非空', 0, () => {
+        const all: PresetEntry[] = GradePresets.ENTRIES;
+        const ids: Set<string> = new Set<string>();
+        for (const e of all) {
+          expect(!ids.has(e.id)).assertTrue();
+          ids.add(e.id);
+          expect(e.grade >= 1 && e.grade <= 3).assertTrue();
+          expect(e.labelZh.length > 0 && e.labelEn.length > 0).assertTrue();
+          if (e.kind === 'mixed') {
+            expect(e.mixed !== null).assertTrue();
+          } else {
+            expect(GradePresets.resolveSpec(e) !== null).assertTrue();
+          }
+          if (e.kind === 'fill') {
+            const from: string | null = e.fillFrom;
+            expect(from !== null).assertTrue();
+            if (from !== null) {
+              expect(GradePresets.byId(from) !== null).assertTrue();
+            }
+          }
+        }
+        expect(all.length >= 20).assertTrue();
+        expect(GradePresets.forGrade(1).length >= 5).assertTrue();
+        expect(GradePresets.forGrade(2).length >= 7).assertTrue();
+        expect(GradePresets.forGrade(3).length >= 5).assertTrue();
+      })
+
+      it('全预设可生成：每条目 20 题 + 性质/文本断言', 0, () => {
+        for (const e of GradePresets.ENTRIES) {
+          if (e.kind === 'mixed') {
+            const ms: MixedSpec | null = e.mixed;
+            if (ms !== null) {
+              const sheet: Collected<MixedProblem> = SheetGen.buildSheetMixed(ms, 777, 20);
+              expect(sheet.items.length).assertEqual(20);
+              for (const m of sheet.items) {
+                assertMixed(m, ms);
+              }
+            }
+          } else {
+            const sp: ProblemSpec | null = GradePresets.resolveSpec(e);
+            if (sp !== null) {
+              if (e.kind === 'fill') {
+                const sheet: Collected<BlankProblem> = SheetGen.buildSheetBlanks(sp, 777, 20);
+                expect(sheet.items.length).assertEqual(20);
+                for (const b of sheet.items) {
+                  expect(b.text.indexOf('\u25a1') >= 0).assertTrue();
+                }
+              } else {
+                const sheet: DedupResult = SheetGen.buildSheet(sp, 777, 20);
+                expect(sheet.problems.length).assertEqual(20);
+                for (const p of sheet.problems) {
+                  assertProblem(p, sp);
+                }
+              }
+            }
+          }
+        }
+      })
+    })
+
+    describe('SheetGen', () => {
+      it('多套同构卷 A/B/C/D：套间不同、套内零重复、同种子复现', 0, () => {
+        const spec: ProblemSpec = new ProblemSpec('add', 10, 99, false);
+        const sets: DedupResult[] = SheetGen.buildSets(spec, 9001, 20, 4);
+        expect(sets.length).assertEqual(4);
+        const firsts: Set<string> = new Set<string>();
+        for (const s of sets) {
+          expect(s.problems.length).assertEqual(20);
+          expect(s.duplicates).assertEqual(0);
+          const keys: Set<string> = new Set<string>();
+          for (const p of s.problems) {
+            keys.add(Dedup.keyOf(p));
+            assertProblem(p, spec);
+          }
+          expect(keys.size).assertEqual(20);
+          firsts.add(Dedup.keyOf(s.problems[0]));
+        }
+        expect(firsts.size).assertEqual(4);
+        const again: DedupResult = SheetGen.buildSheet(spec, 9001, 20);
+        for (let i = 0; i < 20; i++) {
+          expect(Dedup.keyOf(again.problems[i])).assertEqual(Dedup.keyOf(sets[0].problems[i]));
+        }
+      })
+
+      it('混合卷/填空卷：换种子卷面不同 + 同种子复现', 0, () => {
+        const ms: MixedSpec = new MixedSpec('mul', 'add', false, 2, 90, 2, 9, 9, 9, 9);
+        const s1: Collected<MixedProblem> = SheetGen.buildSheetMixed(ms, 9101, 20);
+        const s2: Collected<MixedProblem> = SheetGen.buildSheetMixed(ms, 9102, 20);
+        let same: number = 0;
+        for (let i = 0; i < 20; i++) {
+          if (s1.items[i].key() === s2.items[i].key()) {
+            same++;
+          }
+        }
+        expect(same < 20).assertTrue();
+        const again: Collected<MixedProblem> = SheetGen.buildSheetMixed(ms, 9101, 20);
+        for (let i = 0; i < 20; i++) {
+          expect(again.items[i].key()).assertEqual(s1.items[i].key());
+        }
+
+        const sp: ProblemSpec = new ProblemSpec('add', 10, 99, false);
+        const b1: Collected<BlankProblem> = SheetGen.buildSheetBlanks(sp, 9201, 20);
+        const b2: Collected<BlankProblem> = SheetGen.buildSheetBlanks(sp, 9202, 20);
+        let bSame: number = 0;
+        for (let i = 0; i < 20; i++) {
+          if (b1.items[i].key() === b2.items[i].key()) {
+            bSame++;
+          }
+        }
+        expect(bSame < 20).assertTrue();
       })
     })
   })
