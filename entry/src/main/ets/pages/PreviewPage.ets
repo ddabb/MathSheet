@@ -1,22 +1,39 @@
 ﻿/**
- * 预览页（计划 §5.1/§6.3）：按路由参数确定性重建（同参数同种子 = 同卷），
- * 逐页位图渲染（drawing.Font 管线，思源黑体）+ Swiper 翻页 + 换一批（新种子）。
- * - 题目页黑色题面；答案页（开关开启时追加于后）红色完整式；
- * - 位图按需渲染 + 小缓存（远离当前页先驱逐，PixelMap 显式 release）；
- * - 可行域不足放行数 toast 说明（计划 §5.2 反馈约定）。
- * 导出（PDF/PNG）属 M3 批次，随 PdfCodec 移植接入。
+ * 预览页（计划 §5.1/§6.2/§6.3）：双模式。
+ *
+ * - 新鲜模式（无 sheetId）：参数 + 种子确定性重建（同参数同种子 = 同卷）；
+ *   生成即物化入库（buildMultiSheetTraced 携带题型溯源），换一批 = 删旧存新；
+ * - 卷库模式（sheetId）：加载物化卷（不重生成、隐藏换一批），供卷库重开/导出；
+ * - 导出（M3）：保存图片（长图 → 相册）/ 导出 PDF（300dpi 页图 → A4 容器 → 保存到文件/分享）；
+ * - 位图按需渲染 + 小缓存（LRU 6 页）+ renderEpoch 竞态守卫（沿用 M2 验证过的管线）。
  */
 
 import { display } from '@kit.ArkUI';
+import { i18n } from '@kit.LocalizationKit';
 import { image } from '@kit.ImageKit';
+import { Context } from '@kit.AbilityKit';
 import { GradePresets, PresetEntry } from '../core/GradePresets';
 import { SheetGen } from '../core/SheetGen';
 import { SheetItem } from '../core/SheetModel';
 import { LayoutResult, LayoutSpec, SheetLayout } from '../core/SheetLayout';
 import { PageRenderRequest, SheetRenderer } from '../render/SheetRenderer';
 import { PreviewParams } from '../common/PreviewParams';
+import { StoredItem, StoredSheet } from '../core/SheetCodec';
+import { SheetStore } from '../core/SheetStore';
+import { MemberScope } from '../core/ProfileCodec';
+import { ProfileStore } from '../core/ProfileStore';
+import { ExportUtil, ExportOutcome } from '../common/ExportUtil';
 
-/** 页面视图描述（ForEach 数据源，键含渲染态驱动位图到达后的重建）。 */
+/** 单套卷数据（题目 + 版面 + 该套规格；A/B/C/D 共享参数不同种子）。 */
+class SheetSetData {
+  items: SheetItem[] = [];
+  layout: LayoutResult = new LayoutResult([], 0, 0, 0, 0, 0);
+  spec: LayoutSpec = new LayoutSpec(3, 92, true, '');
+  answerSpec: LayoutSpec = new LayoutSpec(3, 92, true, '');
+  qPages: number = 0;
+}
+
+/** 页面视图描述（ForEach 数据源，键含套号与渲染态驱动位图到达后的重建）。 */
 class PageViewData {
   idx: number = 0;
   bitmap: image.PixelMap | undefined = undefined;
@@ -27,42 +44,58 @@ class PageViewData {
 @Component
 struct PreviewPage {
   @State current: number = 0;
-  @State totalPages: number = 0;
+  @State currentSet: number = 0;
+  @State setCount: number = 1;
   @State qPages: number = 0;
-  @State sheetTitle: string = '';
-  @State answerTitle: string = '';
-  @State pageBitmaps: Array<image.PixelMap | undefined> = [];
+  @State totalPages: number = 0;
+  @State pageBitmaps: Array<Array<image.PixelMap | undefined>> = [];
+  @State exporting: number = 0;
 
   private params: PreviewParams | null = null;
-  private items: SheetItem[] = [];
-  private layout: LayoutResult = new LayoutResult([], 0, 0, 0, 0, 0);
-  private spec: LayoutSpec = new LayoutSpec(3, 92, true, '');
-  private answerSpec: LayoutSpec = new LayoutSpec(3, 92, true, '');
+  private setsData: SheetSetData[] = [];
   private fieldsText: string = '';
   private backLabelStr: string = '';
   private renderScale: number = 0.4;
-  private inFlight: Set<number> = new Set<number>();
+  private inFlight: Set<string> = new Set<string>();
   private renderEpoch: number = 0;
   private swiperController: SwiperController = new SwiperController();
+  private langZh: boolean = true;
+  private storedMode: boolean = false;
+  private storedSheetId: string = '';
+  private savedIds: string[] = [];
+  private answerOn: boolean = true;
+  private sheetTitle: string = '';
+  private answerTitle: string = '';
+  /** 当前成员存储作用域（页面存活期间成员不变，进入时缓存）。 */
+  private storeScope: MemberScope = new MemberScope('');
 
   aboutToAppear(): void {
     const raw: PreviewParams = this.getUIContext().getRouter().getParams() as PreviewParams;
-    if (raw === undefined || raw.typeIds === undefined || raw.typeIds.length === 0) {
+    if (raw === undefined) {
+      this.back();
+      return;
+    }
+    this.langZh = i18n.System.getSimplifiedLanguage().indexOf('zh') === 0;
+    this.setupScale();
+    const ctx0: Context | undefined = this.ctx();
+    if (ctx0 !== undefined) {
+      this.storeScope = ProfileStore.scopeCurrent(ctx0);
+    }
+    if (raw.sheetId !== undefined && raw.sheetId !== '') {
+      this.openStored(raw.sheetId);
+      return;
+    }
+    if (raw.typeIds === undefined || raw.typeIds.length === 0) {
       this.back();
       return;
     }
     this.params = raw;
-    this.setupScale();
     this.rebuild(raw.seed);
   }
 
   aboutToDisappear(): void {
     this.renderEpoch++;
-    for (const pm of this.pageBitmaps) {
-      if (pm !== undefined) {
-        pm.release();
-      }
-    }
+    this.releaseAll();
   }
 
   private setupScale(): void {
@@ -71,8 +104,44 @@ struct PreviewPage {
     this.renderScale = Math.min(0.5, Math.max(0.22, minDim * 0.94 / SheetLayout.PAGE_W));
   }
 
-  /** 按种子重建整卷（生成 → 版面 → 重置位图 → 渲染首页）。 */
-  private rebuild(seed: number): void {
+  private releaseAll(): void {
+    for (const row of this.pageBitmaps) {
+      for (const pm of row) {
+        if (pm !== undefined) {
+          pm.release();
+        }
+      }
+    }
+  }
+
+  private ctx(): Context | undefined {
+    return this.getUIContext().getHostContext();
+  }
+
+  // ---------- 多套卷几何 ----------
+
+  private setLetter(s: number): string {
+    return String.fromCharCode(65 + s);
+  }
+
+  /** 套标题后缀（题头/答案页标题共用）。 */
+  private setSuffix(s: number): string {
+    const letter: string = this.setLetter(s);
+    return this.langZh ? `（${letter}卷）` : ` · Sheet ${letter}`;
+  }
+
+  private totalPagesOfSet(s: number): number {
+    const sd: SheetSetData | undefined = this.setsData[s];
+    if (sd === undefined) {
+      return 0;
+    }
+    return sd.qPages + (this.answerOn ? sd.qPages : 0);
+  }
+
+  // ---------- 模式一：新鲜生成（生成即入库） ----------
+
+  /** 按基础种子重建全部套：traced 生成 → 版面 → 物化入库 → 重置位图。 */
+  private rebuild(baseSeed: number): void {
     if (this.params === null) {
       return;
     }
@@ -88,127 +157,399 @@ struct PreviewPage {
       return;
     }
     const grade: number = entries[0].grade;
-    const ctx = this.getUIContext().getHostContext();
+    const ctx: Context | undefined = this.ctx();
     const rm = ctx !== undefined ? ctx.resourceManager : undefined;
-    this.sheetTitle = grade === 1 ? (rm !== undefined ? rm.getStringSync($r('app.string.sheet_title_g1').id) : '')
-      : grade === 3 ? (rm !== undefined ? rm.getStringSync($r('app.string.sheet_title_g3').id) : '')
-        : (rm !== undefined ? rm.getStringSync($r('app.string.sheet_title_g2').id) : '');
+    const titleRes: Resource = grade === 1 ? $r('app.string.sheet_title_g1')
+      : grade === 3 ? $r('app.string.sheet_title_g3') : $r('app.string.sheet_title_g2');
+    this.sheetTitle = rm !== undefined ? rm.getStringSync(titleRes.id) : '';
     this.answerTitle = rm !== undefined ? rm.getStringSync($r('app.string.answer_sheet_title').id) : '';
     this.fieldsText = rm !== undefined ? rm.getStringSync($r('app.string.header_fields').id) : '';
     this.backLabelStr = rm !== undefined ? rm.getStringSync($r('app.string.back_label').id) : '';
-    const collected = SheetGen.buildMultiSheet(entries, seed, this.params.count);
-    this.items = collected.items;
-    const fontSize: number = LayoutSpec.fontSizeForColumns(this.params.columns);
-    this.spec = new LayoutSpec(this.params.columns, fontSize, this.params.headerOn, this.sheetTitle);
-    this.answerSpec = new LayoutSpec(this.params.columns, fontSize, this.params.headerOn, this.answerTitle);
-    this.layout = SheetLayout.layout(this.items.length, this.spec);
-    this.qPages = this.layout.pages.length;
-    this.totalPages = this.qPages + (this.params.answerOn ? this.qPages : 0);
 
-    this.renderEpoch++;
-    for (const pm of this.pageBitmaps) {
-      if (pm !== undefined) {
-        pm.release();
+    const sets: number = Math.max(1, Math.min(4, this.params.sets));
+    const fontSize: number = LayoutSpec.fontSizeForColumns(this.params.columns);
+    const now: number = Date.now();
+    const data: SheetSetData[] = [];
+    const sheets: StoredSheet[] = [];
+    let duplicatesTotal: number = 0;
+    for (let s = 0; s < sets; s++) {
+      const collected = SheetGen.buildMultiSheetTraced(entries, baseSeed + s, this.params.count);
+      duplicatesTotal += collected.duplicates;
+      const sd: SheetSetData = new SheetSetData();
+      const items: SheetItem[] = [];
+      const storedItems: StoredItem[] = [];
+      for (const t of collected.items) {
+        items.push(t.item);
+        storedItems.push(new StoredItem(t.item.questionText, t.item.answerText, t.item.key, t.presetId));
       }
+      sd.items = items;
+      const suffix: string = sets > 1 ? this.setSuffix(s) : '';
+      sd.spec = new LayoutSpec(this.params.columns, fontSize, this.params.headerOn,
+        this.sheetTitle + suffix);
+      sd.answerSpec = new LayoutSpec(this.params.columns, fontSize, this.params.headerOn,
+        this.answerTitle + suffix);
+      sd.layout = SheetLayout.layout(sd.items.length, sd.spec);
+      sd.qPages = sd.layout.pages.length;
+      data.push(sd);
+      const marks: number[] = [];
+      for (let k = 0; k < storedItems.length; k++) {
+        marks.push(0);
+      }
+      sheets.push(new StoredSheet(SheetStore.newId(), now, this.sheetTitle + suffix, grade,
+        this.params.typeIds.slice(), storedItems.length, this.params.columns,
+        this.params.headerOn, this.params.answerOn, baseSeed + s, storedItems, marks));
     }
-    const arr: Array<image.PixelMap | undefined> = [];
-    for (let i = 0; i < this.totalPages; i++) {
-      arr.push(undefined);
+    this.setsData = data;
+    this.setCount = sets;
+    this.answerOn = this.params.answerOn;
+    this.storedMode = false;
+    if (ctx !== undefined) {
+      SheetStore.saveSheets(this.storeScope, sheets);
+      const ids: string[] = [];
+      for (const sh of sheets) {
+        ids.push(sh.id);
+      }
+      this.savedIds = ids;
     }
-    this.pageBitmaps = arr;
-    this.inFlight.clear();
-    this.current = 0;
-    this.ensureAround(0);
-    if (collected.duplicates > 0) {
+    this.resetView();
+    if (rm !== undefined && duplicatesTotal === 0) {
+      this.getUIContext().getPromptAction()
+        .showToast({ message: rm.getStringSync($r('app.string.saved_to_library_toast').id), duration: 2000 });
+    }
+    if (duplicatesTotal > 0) {
       const msg: string = rm !== undefined
-        ? rm.getStringSync($r('app.string.released_toast').id, collected.duplicates)
-        : `${collected.duplicates}`;
+        ? rm.getStringSync($r('app.string.released_toast').id, duplicatesTotal)
+        : `${duplicatesTotal}`;
       this.getUIContext().getPromptAction().showToast({ message: msg, duration: 2500 });
     }
   }
 
-  /** 渲染当前页 ± 1（翻页预载）。 */
-  private ensureAround(center: number): void {
-    this.ensurePage(center - 1);
-    this.ensurePage(center);
-    this.ensurePage(center + 1);
+  // ---------- 模式二：卷库重开（物化卷，不重生成） ----------
+
+  private openStored(sheetId: string): void {
+    const ctx: Context | undefined = this.ctx();
+    if (ctx === undefined) {
+      this.back();
+      return;
+    }
+    const s: StoredSheet | null = SheetStore.loadSheet(this.storeScope, sheetId);
+    if (s === null || s.items.length === 0) {
+      this.back();
+      return;
+    }
+    const rm = ctx.resourceManager;
+    this.backLabelStr = rm.getStringSync($r('app.string.back_label').id);
+    this.answerTitle = rm.getStringSync($r('app.string.answer_sheet_title').id);
+    this.fieldsText = rm.getStringSync($r('app.string.header_fields').id);
+    this.sheetTitle = s.title;
+    this.storedMode = true;
+    this.storedSheetId = s.id;
+    this.answerOn = s.answerOn;
+    const fontSize: number = LayoutSpec.fontSizeForColumns(s.columns);
+    const sd: SheetSetData = new SheetSetData();
+    const items: SheetItem[] = [];
+    for (const it of s.items) {
+      items.push(new SheetItem(it.q, it.a, it.key));
+    }
+    sd.items = items;
+    sd.spec = new LayoutSpec(s.columns, fontSize, s.headerOn, s.title);
+    sd.answerSpec = new LayoutSpec(s.columns, fontSize, s.headerOn, this.answerTitle);
+    sd.layout = SheetLayout.layout(items.length, sd.spec);
+    sd.qPages = sd.layout.pages.length;
+    this.setsData = [sd];
+    this.setCount = 1;
+    this.resetView();
   }
 
-  private ensurePage(idx: number): void {
-    if (idx < 0 || idx >= this.totalPages) {
+  // ---------- 视图重置与渲染缓存 ----------
+
+  private resetView(): void {
+    this.renderEpoch++;
+    this.releaseAll();
+    const grid: Array<Array<image.PixelMap | undefined>> = [];
+    for (let s = 0; s < this.setCount; s++) {
+      const row: Array<image.PixelMap | undefined> = [];
+      const total: number = this.totalPagesOfSet(s);
+      for (let p = 0; p < total; p++) {
+        row.push(undefined);
+      }
+      grid.push(row);
+    }
+    this.pageBitmaps = grid;
+    this.inFlight.clear();
+    this.currentSet = 0;
+    this.current = 0;
+    this.qPages = this.setsData[0].qPages;
+    this.totalPages = this.totalPagesOfSet(0);
+    this.ensureAround(0, 0);
+  }
+
+  /** 渲染当前页 ± 1（翻页预载）。 */
+  private ensureAround(s: number, center: number): void {
+    this.ensurePage(s, center - 1);
+    this.ensurePage(s, center);
+    this.ensurePage(s, center + 1);
+  }
+
+  private ensurePage(s: number, p: number): void {
+    const total: number = this.totalPagesOfSet(s);
+    if (p < 0 || p >= total) {
       return;
     }
-    if (this.pageBitmaps[idx] !== undefined || this.inFlight.has(idx)) {
+    const row: Array<image.PixelMap | undefined> | undefined = this.pageBitmaps[s];
+    if (row === undefined) {
       return;
     }
-    this.inFlight.add(idx);
+    if (row[p] !== undefined) {
+      return;
+    }
+    const key: string = `${s}-${p}`;
+    if (this.inFlight.has(key)) {
+      return;
+    }
+    const sd: SheetSetData | undefined = this.setsData[s];
+    if (sd === undefined) {
+      return;
+    }
+    this.inFlight.add(key);
     const epoch: number = this.renderEpoch;
-    const isAnswer: boolean = idx >= this.qPages;
-    const inSheet: number = isAnswer ? idx - this.qPages : idx;
-    const pageLabel: string = this.fmtPageLabel(idx + 1, this.totalPages);
-    const fields: string = isAnswer ? '' : this.fieldsText;
-    const req: PageRenderRequest = new PageRenderRequest(this.items, this.layout,
-      isAnswer ? this.answerSpec : this.spec, inSheet, pageLabel, fields, isAnswer, this.renderScale);
+    const isAnswer: boolean = p >= sd.qPages;
+    const inSheet: number = isAnswer ? p - sd.qPages : p;
+    const req: PageRenderRequest = new PageRenderRequest(sd.items, sd.layout,
+      isAnswer ? sd.answerSpec : sd.spec, inSheet, this.fmtPageLabel(s, p + 1, total),
+      isAnswer ? '' : this.fieldsText, isAnswer, this.renderScale);
     SheetRenderer.renderPage(req).then((pm: image.PixelMap) => {
-      this.inFlight.delete(idx);
+      this.inFlight.delete(key);
       if (epoch !== this.renderEpoch) {
         pm.release();
         return;
       }
-      const arr: Array<image.PixelMap | undefined> = this.pageBitmaps.slice();
-      arr[idx] = pm;
-      this.pageBitmaps = arr;
+      const grid: Array<Array<image.PixelMap | undefined>> = this.pageBitmaps.slice();
+      const rowOld: Array<image.PixelMap | undefined> | undefined = grid[s];
+      if (rowOld === undefined) {
+        pm.release();
+        return;
+      }
+      const rowNew: Array<image.PixelMap | undefined> = rowOld.slice();
+      rowNew[p] = pm;
+      grid[s] = rowNew;
+      this.pageBitmaps = grid;
       this.trimCache();
     }).catch(() => {
-      this.inFlight.delete(idx);
+      this.inFlight.delete(key);
     });
   }
 
-  /** 位图缓存上限：超过 6 页驱逐离当前页最远者（显式 release）。 */
+  /** 位图缓存上限：超过 6 页按（套距 ×10000 + 页距）驱逐最远者（显式 release）。 */
   private trimCache(): void {
-    let held: number[] = [];
-    for (let i = 0; i < this.pageBitmaps.length; i++) {
-      if (this.pageBitmaps[i] !== undefined) {
-        held.push(i);
+    const heldS: number[] = [];
+    const heldP: number[] = [];
+    for (let s = 0; s < this.pageBitmaps.length; s++) {
+      const row: Array<image.PixelMap | undefined> | undefined = this.pageBitmaps[s];
+      if (row === undefined) {
+        continue;
       }
-    }
-    while (held.length > 6) {
-      let far: number = held[0];
-      let farDist: number = Math.abs(far - this.current);
-      for (const i of held) {
-        const d: number = Math.abs(i - this.current);
-        if (d > farDist) {
-          far = i;
-          farDist = d;
+      for (let p = 0; p < row.length; p++) {
+        if (row[p] !== undefined) {
+          heldS.push(s);
+          heldP.push(p);
         }
       }
-      const pm: image.PixelMap | undefined = this.pageBitmaps[far];
+    }
+    while (heldS.length > 6) {
+      let farIdx: number = 0;
+      let farDist: number = -1;
+      for (let k = 0; k < heldS.length; k++) {
+        const dist: number = Math.abs(heldS[k] - this.currentSet) * 10000 + Math.abs(heldP[k] - this.current);
+        if (dist > farDist) {
+          farDist = dist;
+          farIdx = k;
+        }
+      }
+      const fs: number = heldS[farIdx];
+      const fp: number = heldP[farIdx];
+      heldS.splice(farIdx, 1);
+      heldP.splice(farIdx, 1);
+      const grid: Array<Array<image.PixelMap | undefined>> = this.pageBitmaps.slice();
+      const rowOld: Array<image.PixelMap | undefined> | undefined = grid[fs];
+      if (rowOld === undefined) {
+        continue;
+      }
+      const rowNew: Array<image.PixelMap | undefined> = rowOld.slice();
+      const pm: image.PixelMap | undefined = rowNew[fp];
       if (pm !== undefined) {
         pm.release();
       }
-      const arr: Array<image.PixelMap | undefined> = this.pageBitmaps.slice();
-      arr[far] = undefined;
-      this.pageBitmaps = arr;
-      held = held.filter((v: number) => v !== far);
+      rowNew[fp] = undefined;
+      grid[fs] = rowNew;
+      this.pageBitmaps = grid;
     }
   }
 
-  private fmtPageLabel(pageNo: number, total: number): string {
-    const ctx = this.getUIContext().getHostContext();
+  // ---------- 导出（M3） ----------
+
+  private exportBaseName(): string {
+    if (this.storedMode) {
+      return `sheet_${this.storedSheetId}`;
+    }
+    const id: string | undefined = this.savedIds[this.currentSet];
+    return id !== undefined ? `sheet_${id}` : `sheet_${Date.now().toString(36)}`;
+  }
+
+  /** 当前套全部页请求（题页 + 答案页，顺序与预览一致）。 */
+  private exportRequests(): PageRenderRequest[] {
+    const sd: SheetSetData | undefined = this.setsData[this.currentSet];
+    if (sd === undefined) {
+      return [];
+    }
+    const total: number = this.totalPagesOfSet(this.currentSet);
+    const reqs: PageRenderRequest[] = [];
+    for (let g = 0; g < total; g++) {
+      const isAnswer: boolean = g >= sd.qPages;
+      const inSheet: number = isAnswer ? g - sd.qPages : g;
+      reqs.push(new PageRenderRequest(sd.items, sd.layout,
+        isAnswer ? sd.answerSpec : sd.spec, inSheet,
+        this.fmtPageLabel(this.currentSet, g + 1, total),
+        isAnswer ? '' : this.fieldsText, isAnswer, this.renderScale));
+    }
+    return reqs;
+  }
+
+  private exportFileName(): string {
+    return this.titleText().replace('/', '_');
+  }
+
+  private exportPdf(): void {
+    if (this.exporting !== 0) {
+      return;
+    }
+    const ctx: Context | undefined = this.ctx();
+    const reqs: PageRenderRequest[] = this.exportRequests();
+    if (ctx === undefined || reqs.length === 0) {
+      return;
+    }
+    this.exporting = 1;
+    ExportUtil.composePdf(ctx, reqs, this.exportBaseName()).then((pdfPath: string | null) => {
+      this.exporting = 0;
+      if (pdfPath === null) {
+        this.getUIContext().getPromptAction()
+          .showToast({ message: $r('app.string.export_pdf_fail'), duration: 2500 });
+        return;
+      }
+      const prompt = this.getUIContext().getPromptAction();
+      prompt.showActionMenu({
+        title: $r('app.string.export_pdf_done'),
+        buttons: [
+          { text: $r('app.string.save_to_files'), color: $r('app.color.primary_text') },
+          { text: $r('app.string.share'), color: $r('app.color.primary_text') }
+        ]
+      }).then((data) => {
+        if (data.index === 0) {
+          this.savePdf(pdfPath);
+        } else if (data.index === 1) {
+          this.sharePdf(pdfPath);
+        }
+      }).catch(() => {
+      });
+    });
+  }
+
+  private savePdf(pdfPath: string): void {
+    const ui = this.getUIContext();
+    ExportUtil.saveToDocument(ui, pdfPath, this.exportFileName(), '.pdf')
+      .then((outcome: number) => {
+        const res: Resource = outcome === ExportOutcome.SAVED ? $r('app.string.saved_toast')
+          : outcome === ExportOutcome.CANCEL ? $r('app.string.export_cancel_toast')
+            : $r('app.string.export_pdf_fail');
+        ui.getPromptAction().showToast({ message: res, duration: 2000 });
+      });
+  }
+
+  private sharePdf(pdfPath: string): void {
+    ExportUtil.shareFile(this.getUIContext(), pdfPath, '.pdf');
+  }
+
+  private saveImage(): void {
+    if (this.exporting !== 0) {
+      return;
+    }
+    const ctx: Context | undefined = this.ctx();
+    const reqs: PageRenderRequest[] = this.exportRequests();
+    if (ctx === undefined || reqs.length === 0) {
+      return;
+    }
+    this.exporting = 2;
+    ExportUtil.composeLongPng(ctx, reqs, this.exportBaseName()).then((pngPath: string | null) => {
+      this.exporting = 0;
+      if (pngPath === null) {
+        this.getUIContext().getPromptAction()
+          .showToast({ message: $r('app.string.save_image_fail'), duration: 2500 });
+        return;
+      }
+      const ui = this.getUIContext();
+      ExportUtil.saveImageToAlbum(ui, pngPath, this.exportFileName())
+        .then((outcome: number) => {
+          const res: Resource = outcome === ExportOutcome.SAVED ? $r('app.string.save_image_done')
+            : outcome === ExportOutcome.CANCEL ? $r('app.string.export_cancel_toast')
+              : $r('app.string.save_image_fail');
+          ui.getPromptAction().showToast({ message: res, duration: 2000 });
+        });
+    });
+  }
+
+  // ---------- 标签与文案 ----------
+
+  private fmtPageLabel(s: number, pageNo: number, total: number): string {
+    const ctx: Context | undefined = this.ctx();
     if (ctx === undefined) {
       return `${pageNo} / ${total}`;
     }
+    if (this.setCount > 1) {
+      return ctx.resourceManager.getStringSync($r('app.string.page_label_set').id,
+        this.setLetter(s), pageNo, total);
+    }
     return ctx.resourceManager.getStringSync($r('app.string.page_label').id, pageNo, total);
+  }
+
+  private titleText(): string {
+    const sd: SheetSetData | undefined = this.setsData[this.currentSet];
+    if (sd === undefined) {
+      return this.sheetTitle;
+    }
+    if (this.storedMode) {
+      return sd.spec.title;
+    }
+    return this.setCount > 1 ? this.sheetTitle + this.setSuffix(this.currentSet) : this.sheetTitle;
   }
 
   private isAnswerPage(): boolean {
     return this.current >= this.qPages;
   }
 
-  private changeBatch(): void {
-    if (this.params === null) {
+  // ---------- 交互 ----------
+
+  private switchSet(s: number): void {
+    if (s === this.currentSet || s < 0 || s >= this.setCount) {
       return;
     }
+    this.currentSet = s;
+    this.current = 0;
+    this.qPages = this.setsData[s].qPages;
+    this.totalPages = this.totalPagesOfSet(s);
+    this.ensureAround(s, 0);
+    this.swiperController.changeIndex(0, false);
+  }
+
+  /** 换一批（新鲜模式）：删本会话旧卷 → 新种子重建（重建再入库）。 */
+  private changeBatch(): void {
+    if (this.storedMode || this.params === null) {
+      return;
+    }
+    const ctx: Context | undefined = this.ctx();
+    if (ctx !== undefined && this.savedIds.length > 0) {
+      SheetStore.removeSheets(this.storeScope, this.savedIds);
+    }
+    this.savedIds = [];
     const newSeed: number = Math.floor(Math.random() * 2147483647);
     this.params.seed = newSeed;
     this.rebuild(newSeed);
@@ -221,83 +562,162 @@ struct PreviewPage {
 
   private pageViews(): PageViewData[] {
     const out: PageViewData[] = [];
+    const row: Array<image.PixelMap | undefined> | undefined = this.pageBitmaps[this.currentSet];
     for (let i = 0; i < this.totalPages; i++) {
       const v: PageViewData = new PageViewData();
       v.idx = i;
-      v.bitmap = this.pageBitmaps[i];
+      v.bitmap = row !== undefined ? row[i] : undefined;
       v.isAnswer = i >= this.qPages;
       out.push(v);
     }
     return out;
   }
 
+  private setChips(): string[] {
+    const out: string[] = [];
+    for (let s = 0; s < this.setCount; s++) {
+      out.push(this.setLetter(s));
+    }
+    return out;
+  }
+
   build() {
-    Column() {
-      // 顶栏：返回 │ 标题（当前页为答案页时切换） │ 换一批
-      Row({ space: 12 }) {
-        Text(`‹ ${this.backLabelStr}`)
-          .fontSize(15)
-          .fontColor($r('app.color.brand'))
-          .onClick(() => this.back())
-        Blank()
-        Row({ space: 6 }) {
-          Text(this.isAnswerPage() ? this.answerTitle : this.sheetTitle)
+    Stack() {
+      Column() {
+        // 顶栏：返回 │ 标题（答案页红色角标）│ A/B/C/D 套切换
+        Row() {
+          Text(`‹ ${this.backLabelStr}`)
             .fontSize(15)
-            .fontWeight(FontWeight.Bold)
-            .fontColor(this.isAnswerPage() ? $r('app.color.danger_red') : $r('app.color.primary_text'))
-            .maxLines(1)
-            .textOverflow({ overflow: TextOverflow.Ellipsis })
-        }
-        Blank()
-        Text($r('app.string.change_batch'))
-          .fontSize(15)
-          .fontColor($r('app.color.brand'))
-          .onClick(() => this.changeBatch())
-      }
-      .width('100%')
-      .padding({ left: 16, right: 16, top: 12, bottom: 8 })
-
-      // 页区：Swiper 逐页位图
-      Swiper(this.swiperController) {
-        ForEach(this.pageViews(), (v: PageViewData) => {
-          if (v.bitmap !== undefined) {
-            Image(v.bitmap)
-              .width('94%')
-              .height('94%')
-              .objectFit(ImageFit.Contain)
-              .borderRadius(6)
-          } else {
-            Column({ space: 12 }) {
-              LoadingProgress()
-                .width(40)
-                .height(40)
-              Text(`${v.idx + 1} / ${this.totalPages}`)
-                .fontSize(13)
-                .fontColor($r('app.color.hint_text'))
+            .fontColor($r('app.color.brand'))
+            .onClick(() => this.back())
+          Blank()
+          Column({ space: 3 }) {
+            Text(this.titleText())
+              .fontSize(15)
+              .fontWeight(FontWeight.Bold)
+              .fontColor($r('app.color.primary_text'))
+              .maxLines(1)
+              .textOverflow({ overflow: TextOverflow.Ellipsis })
+            if (this.isAnswerPage()) {
+              Text(this.answerTitle)
+                .fontSize(10)
+                .fontColor($r('app.color.danger_red'))
+                .backgroundColor($r('app.color.answer_tint'))
+                .borderRadius(7)
+                .padding({ left: 8, right: 8, top: 2, bottom: 2 })
             }
-            .justifyContent(FlexAlign.Center)
           }
-        }, (v: PageViewData) => `${v.idx}-${v.bitmap !== undefined}`)
-      }
-      .index(this.current)
-      .indicator(false)
-      .loop(false)
-      .layoutWeight(1)
-      .width('100%')
-      .onChange((idx: number) => {
-        this.current = idx;
-        this.ensureAround(idx);
-      })
+          .alignItems(HorizontalAlign.Center)
+          .constraintSize({ maxWidth: '58%' })
+          Blank()
+          if (this.setCount > 1) {
+            Row({ space: 6 }) {
+              ForEach(this.setChips(), (letter: string, i: number) => {
+                Text(letter)
+                  .fontSize(12)
+                  .fontWeight(i === this.currentSet ? FontWeight.Bold : FontWeight.Normal)
+                  .fontColor(i === this.currentSet ? $r('app.color.on_accent_text')
+                    : $r('app.color.secondary_text'))
+                  .backgroundColor(i === this.currentSet ? $r('app.color.brand')
+                    : $r('app.color.card_background'))
+                  .width(26)
+                  .height(26)
+                  .borderRadius(13)
+                  .textAlign(TextAlign.Center)
+                  .onClick(() => this.switchSet(i))
+              }, (letter: string) => letter)
+            }
+          }
+        }
+        .width('100%')
+        .padding({ left: 16, right: 16, top: 12, bottom: 8 })
 
-      // 底栏：页码指示
-      Row({ space: 8 }) {
-        Text(`${this.current + 1} / ${this.totalPages}`)
-          .fontSize(14)
-          .fontColor($r('app.color.secondary_text'))
+        // 页区：Swiper 逐页位图
+        Swiper(this.swiperController) {
+          ForEach(this.pageViews(), (v: PageViewData) => {
+            if (v.bitmap !== undefined) {
+              Image(v.bitmap)
+                .width('94%')
+                .height('94%')
+                .objectFit(ImageFit.Contain)
+                .borderRadius(6)
+            } else {
+              Column({ space: 12 }) {
+                LoadingProgress()
+                  .width(40)
+                  .height(40)
+                Text(`${v.idx + 1} / ${this.totalPages}`)
+                  .fontSize(13)
+                  .fontColor($r('app.color.hint_text'))
+              }
+              .justifyContent(FlexAlign.Center)
+            }
+          }, (v: PageViewData) => `${this.currentSet}-${v.idx}-${v.bitmap !== undefined}`)
+        }
+        .index(this.current)
+        .indicator(false)
+        .loop(false)
+        .layoutWeight(1)
+        .width('100%')
+        .onChange((idx: number) => {
+          this.current = idx;
+          this.ensureAround(this.currentSet, idx);
+        })
+
+        // 底栏：页码 + 换一批（新鲜模式）+ 保存图片 + 导出 PDF
+        Row({ space: 10 }) {
+          Text(`${this.current + 1} / ${this.totalPages}`)
+            .fontSize(13)
+            .fontColor($r('app.color.secondary_text'))
+          Blank()
+          if (!this.storedMode) {
+            Text($r('app.string.change_batch'))
+              .fontSize(14)
+              .fontColor($r('app.color.brand'))
+              .backgroundColor($r('app.color.brand_tint'))
+              .borderRadius(17)
+              .padding({ left: 15, right: 15, top: 8, bottom: 8 })
+              .onClick(() => this.changeBatch())
+          }
+          Text($r('app.string.save_image_button'))
+            .fontSize(14)
+            .fontColor($r('app.color.chip_text'))
+            .backgroundColor($r('app.color.chip_bg'))
+            .borderRadius(17)
+            .padding({ left: 15, right: 15, top: 8, bottom: 8 })
+            .onClick(() => this.saveImage())
+          Text($r('app.string.export_pdf_button'))
+            .fontSize(14)
+            .fontWeight(FontWeight.Bold)
+            .fontColor($r('app.color.on_accent_text'))
+            .backgroundColor($r('app.color.brand'))
+            .borderRadius(17)
+            .padding({ left: 15, right: 15, top: 8, bottom: 8 })
+            .onClick(() => this.exportPdf())
+        }
+        .width('100%')
+        .padding({ left: 16, right: 16, top: 6, bottom: 10 })
       }
       .width('100%')
-      .height(42)
-      .justifyContent(FlexAlign.Center)
+      .height('100%')
+
+      // 导出遮罩
+      if (this.exporting !== 0) {
+        Column({ space: 12 }) {
+          LoadingProgress()
+            .width(42)
+            .height(42)
+            .color(Color.White)
+          Text(this.exporting === 1 ? $r('app.string.export_pdf_composing')
+            : $r('app.string.save_image_composing'))
+            .fontSize(14)
+            .fontColor(Color.White)
+        }
+        .width('100%')
+        .height('100%')
+        .justifyContent(FlexAlign.Center)
+        .backgroundColor('#99000000')
+      }
     }
     .width('100%')
     .height('100%')

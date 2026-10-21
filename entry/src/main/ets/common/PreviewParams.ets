@@ -16,4 +16,17 @@ export interface PreviewParams {
   headerOn: boolean;
   /** 答案页开关（末页红色答案）。 */
   answerOn: boolean;
+  /** 同构卷套数（1/2/4，A/B/C/D 卷，种子 = seed..seed+sets-1）。 */
+  sets: number;
+  /**
+   * M3 卷库重开模式：传入即从卷库加载该卷（物化题目，不重生成、隐藏换一批）；
+   * 缺省 = 新鲜生成模式（参数 + 种子确定性重建，生成即入库）。
+   * 卷库模式仅消费 sheetId，其余字段由调用方传占位值。
+   */
+  sheetId?: string;
+}
+
+/** M4 批改页路由参数（Index 卷库卡片 → 批改）。 */
+export interface GradeParams {
+  sheetId: string;
 }

@@ -19,3 +19,4 @@
 .ui_shots/
 /keystore/
 __pycache__/
+/build-profile.json5

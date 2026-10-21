@@ -49,8 +49,20 @@
       "value": "#DC2626"
     },
     {
+      "name": "answer_tint",
+      "value": "#1ADC2626"
+    },
+    {
       "name": "on_accent_text",
       "value": "#FFFFFF"
+    },
+    {
+      "name": "chip_bg",
+      "value": "#F2F2F2"
+    },
+    {
+      "name": "chip_text",
+      "value": "#333333"
     }
   ]
 }

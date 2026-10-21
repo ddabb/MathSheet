@@ -2,15 +2,15 @@
   "string": [
     {
       "name": "module_desc",
-      "value": "Main module of Ruyi Math"
+      "value": "Main module of MathSheet"
     },
     {
       "name": "EntryAbility_desc",
-      "value": "Ruyi Math app entry"
+      "value": "MathSheet app entry"
     },
     {
       "name": "EntryAbility_label",
-      "value": "Ruyi Math"
+      "value": "MathSheet"
     },
     {
       "name": "app_tagline",
@@ -123,6 +123,346 @@
     {
       "name": "sheet_title_g3",
       "value": "Grade 3 Oral Math Practice"
+    },
+    {
+      "name": "daily_title",
+      "value": "Daily Practice"
+    },
+    {
+      "name": "daily_streak_zero",
+      "value": "Start today's oral-math practice"
+    },
+    {
+      "name": "daily_streak_done",
+      "value": "Done today · %d-day streak"
+    },
+    {
+      "name": "daily_streak_pending",
+      "value": "%d-day streak · not yet today"
+    },
+    {
+      "name": "daily_cfg_summary",
+      "value": "Grade %1$d · %2$d problems · %3$d columns"
+    },
+    {
+      "name": "daily_generate_button",
+      "value": "Generate Today's Sheet"
+    },
+    {
+      "name": "difficulty_label",
+      "value": "Difficulty"
+    },
+    {
+      "name": "difficulty_base",
+      "value": "Basic"
+    },
+    {
+      "name": "difficulty_plus",
+      "value": "Advanced"
+    },
+    {
+      "name": "sets_label",
+      "value": "Sets"
+    },
+    {
+      "name": "sets_hint",
+      "value": "Same setup, different problems (A/B/C/D)"
+    },
+    {
+      "name": "sets_one",
+      "value": "×1"
+    },
+    {
+      "name": "sets_two",
+      "value": "×2"
+    },
+    {
+      "name": "sets_four",
+      "value": "×4"
+    },
+    {
+      "name": "tab_generate",
+      "value": "Create"
+    },
+    {
+      "name": "tab_library",
+      "value": "Library"
+    },
+    {
+      "name": "tab_mistakes",
+      "value": "Mistakes"
+    },
+    {
+      "name": "tab_settings",
+      "value": "Settings"
+    },
+    {
+      "name": "library_empty_title",
+      "value": "Library is empty"
+    },
+    {
+      "name": "library_empty_desc",
+      "value": "Generated sheets will be saved here for reopening and grading"
+    },
+    {
+      "name": "mistakes_empty_title",
+      "value": "No mistakes yet"
+    },
+    {
+      "name": "mistakes_empty_desc",
+      "value": "Graded mistakes will be collected here for re-practice"
+    },
+    {
+      "name": "go_generate",
+      "value": "Create Now"
+    },
+    {
+      "name": "settings_display",
+      "value": "Display"
+    },
+    {
+      "name": "settings_dark_mode",
+      "value": "Dark mode"
+    },
+    {
+      "name": "settings_dark_value",
+      "value": "Follow system"
+    },
+    {
+      "name": "settings_about",
+      "value": "About"
+    },
+    {
+      "name": "settings_restore_note",
+      "value": "Purchase tied to your Huawei ID — reinstall for free"
+    },
+    {
+      "name": "settings_privacy_note",
+      "value": "No network permission; data never leaves the device"
+    },
+    {
+      "name": "page_label_set",
+      "value": "Sheet %1$s · Page %2$d of %3$d"
+    },
+    {
+      "name": "export_pdf_button",
+      "value": "Export PDF"
+    },
+    {
+      "name": "export_pdf_composing",
+      "value": "Composing PDF…"
+    },
+    {
+      "name": "export_pdf_done",
+      "value": "PDF ready"
+    },
+    {
+      "name": "export_pdf_fail",
+      "value": "Failed to compose PDF, please retry"
+    },
+    {
+      "name": "save_to_files",
+      "value": "Save to Files"
+    },
+    {
+      "name": "share",
+      "value": "Share"
+    },
+    {
+      "name": "save_image_button",
+      "value": "Save Image"
+    },
+    {
+      "name": "save_image_composing",
+      "value": "Stitching long image…"
+    },
+    {
+      "name": "save_image_done",
+      "value": "Long image saved to Gallery"
+    },
+    {
+      "name": "save_image_fail",
+      "value": "Failed to stitch image, please retry"
+    },
+    {
+      "name": "export_cancel_toast",
+      "value": "Canceled"
+    },
+    {
+      "name": "saved_toast",
+      "value": "Saved"
+    },
+    {
+      "name": "saved_to_library_toast",
+      "value": "Saved to library"
+    },
+    {
+      "name": "grade_title",
+      "value": "Grading"
+    },
+    {
+      "name": "grade_right_label",
+      "value": "Right"
+    },
+    {
+      "name": "grade_wrong_label",
+      "value": "Wrong"
+    },
+    {
+      "name": "grade_progress",
+      "value": "Graded %1$d of %2$d"
+    },
+    {
+      "name": "grade_done_title",
+      "value": "Grading complete"
+    },
+    {
+      "name": "grade_done_summary",
+      "value": "%1$d items · %2$d right · %3$d wrong"
+    },
+    {
+      "name": "grade_commit_toast",
+      "value": "Mistakes filed to your book"
+    },
+    {
+      "name": "grade_all_correct_toast",
+      "value": "All correct, well done"
+    },
+    {
+      "name": "grade_exit_title",
+      "value": "Grading unfinished"
+    },
+    {
+      "name": "grade_exit_msg",
+      "value": "Progress is saved automatically, resume anytime"
+    },
+    {
+      "name": "grade_exit_keep",
+      "value": "Keep Grading"
+    },
+    {
+      "name": "grade_exit_leave",
+      "value": "Leave"
+    },
+    {
+      "name": "library_open",
+      "value": "Open"
+    },
+    {
+      "name": "library_grade",
+      "value": "Grade"
+    },
+    {
+      "name": "library_delete",
+      "value": "Delete"
+    },
+    {
+      "name": "library_delete_title",
+      "value": "Delete this sheet?"
+    },
+    {
+      "name": "library_delete_msg",
+      "value": "This cannot be undone"
+    },
+    {
+      "name": "library_delete_ok",
+      "value": "Delete"
+    },
+    {
+      "name": "dialog_cancel",
+      "value": "Cancel"
+    },
+    {
+      "name": "library_meta_graded",
+      "value": "Graded %1$d/%2$d · %3$d wrong"
+    },
+    {
+      "name": "library_meta_ungraded",
+      "value": "Not graded yet"
+    },
+    {
+      "name": "library_count_date",
+      "value": "%1$d problems · %2$s"
+    },
+    {
+      "name": "mistakes_count",
+      "value": "%d mistakes in total"
+    },
+    {
+      "name": "mistakes_entry_meta",
+      "value": "Missed %1$d× · %2$s"
+    },
+    {
+      "name": "mistakes_drill_button",
+      "value": "Build Practice Sheet"
+    },
+    {
+      "name": "mistakes_drill_title",
+      "value": "Mistake Practice"
+    },
+    {
+      "name": "mistakes_drill_toast",
+      "value": "Practice sheet saved to library"
+    },
+    {
+      "name": "mistakes_clear_button",
+      "value": "Clear All"
+    },
+    {
+      "name": "mistakes_clear_title",
+      "value": "Clear mistake book?"
+    },
+    {
+      "name": "mistakes_clear_msg",
+      "value": "All %d mistakes will be removed permanently"
+    },
+    {
+      "name": "mistakes_clear_ok",
+      "value": "Clear"
+    },
+    {
+      "name": "member_default_name",
+      "value": "Default"
+    },
+    {
+      "name": "member_section",
+      "value": "Members"
+    },
+    {
+      "name": "member_add",
+      "value": "Add Member"
+    },
+    {
+      "name": "member_name_hint",
+      "value": "Name (up to 6 chars)"
+    },
+    {
+      "name": "member_rename",
+      "value": "Rename"
+    },
+    {
+      "name": "member_delete_title",
+      "value": "Remove member?"
+    },
+    {
+      "name": "member_delete_msg",
+      "value": "This permanently removes %s's sheets, mistakes and streaks"
+    },
+    {
+      "name": "member_current_tag",
+      "value": "Current"
+    },
+    {
+      "name": "member_name_empty_toast",
+      "value": "Please enter a name"
+    },
+    {
+      "name": "member_limit_toast",
+      "value": "Up to 6 members"
+    },
+    {
+      "name": "member_confirm",
+      "value": "OK"
     }
   ]
 }

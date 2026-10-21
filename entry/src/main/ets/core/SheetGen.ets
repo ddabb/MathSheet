@@ -13,6 +13,17 @@ import { FillBlank, BlankProblem } from './FillBlank';
 import { GradePresets, PresetEntry } from './GradePresets';
 import { SheetItem } from './SheetModel';
 
+/** 带题型溯源的题目（item + presetId；卷库物化存储 presetId 供错题重练）。 */
+export class TracedItem {
+  item: SheetItem;
+  presetId: string;
+
+  constructor(item: SheetItem, presetId: string) {
+    this.item = item;
+    this.presetId = presetId;
+  }
+}
+
 export class SheetGen {
   /** 单卷：同种子复现的基石。 */
   static buildSheet(spec: ProblemSpec, seed: number, count: number): DedupResult {
@@ -59,6 +70,29 @@ export class SheetGen {
         return SheetGen.genItemForEntry(entry, rng);
       },
       (item: SheetItem) => item.key);
+  }
+
+  /**
+   * M3 带题型溯源的混编（卷库物化 §6.4）：与 buildMultiSheet 同轮转同种子同结果，
+   * 额外携带每题的 presetId（错题重练"同类新题"依据）。
+   */
+  static buildMultiSheetTraced(entries: PresetEntry[], seed: number, count: number): Collected<TracedItem> {
+    const rng: Rng = new Rng(seed);
+    const n: number = entries.length;
+    let turn: number = 0;
+    return Dedup.collectBy(count,
+      () => {
+        const entry: PresetEntry = entries[turn % n];
+        turn++;
+        return new TracedItem(SheetGen.genItemForEntry(entry, rng), entry.id);
+      },
+      (t: TracedItem) => t.item.key);
+  }
+
+  /** 按 presetId 生成单题（错题重练同类新题用；预设缺失返回 null）。 */
+  static itemForPresetId(id: string, rng: Rng): SheetItem | null {
+    const entry: PresetEntry | null = GradePresets.byId(id);
+    return entry === null ? null : SheetGen.genItemForEntry(entry, rng);
   }
 
   /** 单表目 → SheetItem（single/mixed/fill 三态分发；非法表项退化为 10 以内加法兜底）。 */

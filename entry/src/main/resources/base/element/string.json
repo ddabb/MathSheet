@@ -2,15 +2,15 @@
   "string": [
     {
       "name": "module_desc",
-      "value": "如意口算主模块"
+      "value": "出题本主模块"
     },
     {
       "name": "EntryAbility_desc",
-      "value": "如意口算应用入口"
+      "value": "出题本应用入口"
     },
     {
       "name": "EntryAbility_label",
-      "value": "如意口算"
+      "value": "出题本"
     },
     {
       "name": "app_tagline",
@@ -123,6 +123,346 @@
     {
       "name": "sheet_title_g3",
       "value": "三年级口算练习"
+    },
+    {
+      "name": "daily_title",
+      "value": "每日一练"
+    },
+    {
+      "name": "daily_streak_zero",
+      "value": "开始今天的口算练习吧"
+    },
+    {
+      "name": "daily_streak_done",
+      "value": "今日已练 · 已连练 %d 天"
+    },
+    {
+      "name": "daily_streak_pending",
+      "value": "已连练 %d 天 · 今天还没练"
+    },
+    {
+      "name": "daily_cfg_summary",
+      "value": "%1$d年级 · %2$d题 · %3$d列"
+    },
+    {
+      "name": "daily_generate_button",
+      "value": "生成今天的题卡"
+    },
+    {
+      "name": "difficulty_label",
+      "value": "难度"
+    },
+    {
+      "name": "difficulty_base",
+      "value": "基础"
+    },
+    {
+      "name": "difficulty_plus",
+      "value": "进阶"
+    },
+    {
+      "name": "sets_label",
+      "value": "套数"
+    },
+    {
+      "name": "sets_hint",
+      "value": "同参数异题卷（A/B/C/D），防抄袭"
+    },
+    {
+      "name": "sets_one",
+      "value": "1套"
+    },
+    {
+      "name": "sets_two",
+      "value": "2套"
+    },
+    {
+      "name": "sets_four",
+      "value": "4套"
+    },
+    {
+      "name": "tab_generate",
+      "value": "生成"
+    },
+    {
+      "name": "tab_library",
+      "value": "卷库"
+    },
+    {
+      "name": "tab_mistakes",
+      "value": "错题本"
+    },
+    {
+      "name": "tab_settings",
+      "value": "设置"
+    },
+    {
+      "name": "library_empty_title",
+      "value": "卷库还是空的"
+    },
+    {
+      "name": "library_empty_desc",
+      "value": "生成的题卡会保存在这里，可随时重开与批改"
+    },
+    {
+      "name": "mistakes_empty_title",
+      "value": "错题本还是空的"
+    },
+    {
+      "name": "mistakes_empty_desc",
+      "value": "批改标记的错题会收进这里，支持一键重练"
+    },
+    {
+      "name": "go_generate",
+      "value": "去生成"
+    },
+    {
+      "name": "settings_display",
+      "value": "显示"
+    },
+    {
+      "name": "settings_dark_mode",
+      "value": "深色模式"
+    },
+    {
+      "name": "settings_dark_value",
+      "value": "跟随系统"
+    },
+    {
+      "name": "settings_about",
+      "value": "关于"
+    },
+    {
+      "name": "settings_restore_note",
+      "value": "购买凭证为华为账号，卸载重装可免费恢复"
+    },
+    {
+      "name": "settings_privacy_note",
+      "value": "零网络权限，作业数据不出手机"
+    },
+    {
+      "name": "page_label_set",
+      "value": "%1$s卷 · 第 %2$d 页 / 共 %3$d 页"
+    },
+    {
+      "name": "export_pdf_button",
+      "value": "导出 PDF"
+    },
+    {
+      "name": "export_pdf_composing",
+      "value": "正在合成 PDF…"
+    },
+    {
+      "name": "export_pdf_done",
+      "value": "PDF 已生成"
+    },
+    {
+      "name": "export_pdf_fail",
+      "value": "PDF 生成失败，请重试"
+    },
+    {
+      "name": "save_to_files",
+      "value": "保存到文件"
+    },
+    {
+      "name": "share",
+      "value": "分享"
+    },
+    {
+      "name": "save_image_button",
+      "value": "保存图片"
+    },
+    {
+      "name": "save_image_composing",
+      "value": "正在拼接长图…"
+    },
+    {
+      "name": "save_image_done",
+      "value": "长图已保存到相册"
+    },
+    {
+      "name": "save_image_fail",
+      "value": "长图生成失败，请重试"
+    },
+    {
+      "name": "export_cancel_toast",
+      "value": "已取消"
+    },
+    {
+      "name": "saved_toast",
+      "value": "已保存"
+    },
+    {
+      "name": "saved_to_library_toast",
+      "value": "已存入卷库"
+    },
+    {
+      "name": "grade_title",
+      "value": "批改"
+    },
+    {
+      "name": "grade_right_label",
+      "value": "对"
+    },
+    {
+      "name": "grade_wrong_label",
+      "value": "错"
+    },
+    {
+      "name": "grade_progress",
+      "value": "已批 %1$d / %2$d"
+    },
+    {
+      "name": "grade_done_title",
+      "value": "批改完成"
+    },
+    {
+      "name": "grade_done_summary",
+      "value": "共 %1$d 题 · 对 %2$d · 错 %3$d"
+    },
+    {
+      "name": "grade_commit_toast",
+      "value": "错题已汇入错题本"
+    },
+    {
+      "name": "grade_all_correct_toast",
+      "value": "全对，真棒"
+    },
+    {
+      "name": "grade_exit_title",
+      "value": "还没批完"
+    },
+    {
+      "name": "grade_exit_msg",
+      "value": "批改进度已自动保存，可随时回来继续"
+    },
+    {
+      "name": "grade_exit_keep",
+      "value": "继续批改"
+    },
+    {
+      "name": "grade_exit_leave",
+      "value": "先离开"
+    },
+    {
+      "name": "library_open",
+      "value": "打开"
+    },
+    {
+      "name": "library_grade",
+      "value": "批改"
+    },
+    {
+      "name": "library_delete",
+      "value": "删除"
+    },
+    {
+      "name": "library_delete_title",
+      "value": "删除这套题卡？"
+    },
+    {
+      "name": "library_delete_msg",
+      "value": "删除后不可恢复"
+    },
+    {
+      "name": "library_delete_ok",
+      "value": "删除"
+    },
+    {
+      "name": "dialog_cancel",
+      "value": "取消"
+    },
+    {
+      "name": "library_meta_graded",
+      "value": "已批 %1$d/%2$d · 错 %3$d"
+    },
+    {
+      "name": "library_meta_ungraded",
+      "value": "未批改"
+    },
+    {
+      "name": "library_count_date",
+      "value": "%1$d 题 · %2$s"
+    },
+    {
+      "name": "mistakes_count",
+      "value": "共 %d 道错题"
+    },
+    {
+      "name": "mistakes_entry_meta",
+      "value": "错 %1$d 次 · %2$s"
+    },
+    {
+      "name": "mistakes_drill_button",
+      "value": "生成重练卷"
+    },
+    {
+      "name": "mistakes_drill_title",
+      "value": "错题重练"
+    },
+    {
+      "name": "mistakes_drill_toast",
+      "value": "重练卷已存入卷库"
+    },
+    {
+      "name": "mistakes_clear_button",
+      "value": "清空错题本"
+    },
+    {
+      "name": "mistakes_clear_title",
+      "value": "清空错题本？"
+    },
+    {
+      "name": "mistakes_clear_msg",
+      "value": "将删除全部 %d 道错题，不可恢复"
+    },
+    {
+      "name": "mistakes_clear_ok",
+      "value": "清空"
+    },
+    {
+      "name": "member_default_name",
+      "value": "默认"
+    },
+    {
+      "name": "member_section",
+      "value": "家庭成员"
+    },
+    {
+      "name": "member_add",
+      "value": "新增成员"
+    },
+    {
+      "name": "member_name_hint",
+      "value": "昵称（最多6字）"
+    },
+    {
+      "name": "member_rename",
+      "value": "改名"
+    },
+    {
+      "name": "member_delete_title",
+      "value": "删除成员？"
+    },
+    {
+      "name": "member_delete_msg",
+      "value": "将删除“%s”的卷库、错题本与打卡记录，不可恢复"
+    },
+    {
+      "name": "member_current_tag",
+      "value": "当前"
+    },
+    {
+      "name": "member_name_empty_toast",
+      "value": "请输入成员昵称"
+    },
+    {
+      "name": "member_limit_toast",
+      "value": "最多 6 个成员"
+    },
+    {
+      "name": "member_confirm",
+      "value": "确定"
     }
   ]
 }

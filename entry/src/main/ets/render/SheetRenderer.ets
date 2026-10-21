@@ -86,22 +86,25 @@ export class SheetRenderer {
       pixelFormat: image.PixelMapFormat.RGBA_8888
     };
     const pm: image.PixelMap = await image.createPixelMap(buffer, opts);
-    SheetRenderer.drawPage(new drawing.Canvas(pm), req, w);
+    SheetRenderer.drawPage(new drawing.Canvas(pm), req, w, 0);
     return pm;
   }
 
-  /** 页面绘制（drawing.Canvas 目标，供离屏与上屏复用）。 */
-  static drawPage(canvas: drawing.Canvas, req: PageRenderRequest, pageWidth: number): void {
+  /**
+   * 页面绘制（drawing.Canvas 目标，供离屏与上屏复用）。
+   * offsetY：长图合成时逐页纵向偏移（M3 导出 PNG 长图用，单页渲染传 0）。
+   */
+  static drawPage(canvas: drawing.Canvas, req: PageRenderRequest, pageWidth: number, offsetY: number): void {
     const s: number = req.scale;
     const page: PageLayout = req.layout.pages[req.pageIndex];
     if (page.hasHeader) {
       SheetRenderer.drawCenteredText(canvas, req.spec.title,
         Math.round(SheetLayout.TITLE_FONT * s),
-        pageWidth, Math.round(req.layout.titleBaselineY * s), SheetRenderer.TEXT_BLACK);
+        pageWidth, Math.round(req.layout.titleBaselineY * s) + offsetY, SheetRenderer.TEXT_BLACK);
       if (req.fieldsText !== '') {
         SheetRenderer.drawText(canvas, req.fieldsText,
           Math.round(SheetLayout.FIELDS_FONT * s),
-          Math.round(SheetLayout.MARGIN * s), Math.round(req.layout.fieldsBaselineY * s),
+          Math.round(SheetLayout.MARGIN * s), Math.round(req.layout.fieldsBaselineY * s) + offsetY,
           SheetRenderer.TEXT_BLACK);
       }
     }
@@ -113,13 +116,13 @@ export class SheetRenderer {
       const item: SheetItem = req.items[placed.index];
       const text: string = req.showAnswers ? item.answerText : item.questionText;
       canvas.drawTextBlob(drawing.TextBlob.makeFromString(text, font),
-        Math.round(placed.x * s), Math.round(placed.y * s));
+        Math.round(placed.x * s), Math.round(placed.y * s) + offsetY);
     }
     canvas.detachBrush();
     if (req.pageLabel !== '') {
       SheetRenderer.drawCenteredText(canvas, req.pageLabel,
         Math.round(SheetLayout.FOOTER_FONT * s),
-        pageWidth, Math.round(req.layout.footerBaselineY * s), SheetRenderer.TEXT_BLACK);
+        pageWidth, Math.round(req.layout.footerBaselineY * s) + offsetY, SheetRenderer.TEXT_BLACK);
     }
   }
 
