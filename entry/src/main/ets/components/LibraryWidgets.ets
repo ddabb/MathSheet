@@ -131,7 +131,7 @@ export struct LibraryPanel {
         } else {
           ForEach(this.metas, (m: StoredMeta) => {
             this.Card(m)
-          }, (m: StoredMeta) => m.id)
+          }, (m: StoredMeta) => `${m.id}-${m.gradedCount}-${m.wrongCount}`)
         }
       }
       .width('100%')
@@ -261,7 +261,7 @@ export struct MistakesPanel {
 
           ForEach(this.mistakes, (e: MistakeEntry, i: number) => {
             this.Row2(e)
-          }, (e: MistakeEntry, i: number) => `${i}-${e.key}`)
+          }, (e: MistakeEntry) => `${e.key}-${e.wrongCount}-${e.srcTitle}`)
         }
       }
       .width('100%')
