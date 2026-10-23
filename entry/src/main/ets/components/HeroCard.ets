@@ -30,12 +30,13 @@ export struct HeroCard {
         .alignItems(HorizontalAlign.Start)
         .layoutWeight(1)
       }
-      if (this.hasConfig) {
-        Text(this.cfgText)
-          .fontSize(12)
-          .fontColor($r('app.color.on_accent_text'))
-          .opacity(0.85)
-      }
+      // 配置摘要行恒占位（透明占位替代条件渲染）：hasConfig 翻转时卡片高度零跳动，
+      // 下方表单 chips 坐标稳定（批改走查两次踩中 +52px 位移陷阱的根治项）。
+      Text(this.cfgText)
+        .fontSize(12)
+        .fontColor($r('app.color.on_accent_text'))
+        .opacity(this.hasConfig ? 0.85 : 0)
+        .constraintSize({ minHeight: 16 })
       Button($r('app.string.daily_generate_button'))
         .width('100%')
         .height(40)

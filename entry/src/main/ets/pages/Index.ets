@@ -14,6 +14,7 @@
 
 import { i18n, resourceManager } from '@kit.LocalizationKit';
 import { Context } from '@kit.AbilityKit';
+import { display } from '@kit.ArkUI';
 import { GradePresets, PresetEntry } from '../core/GradePresets';
 import { TypeFamilies, TypeFamily } from '../common/TypeFamilies';
 import { DailyState, DailyStore } from '../common/DailyStore';
@@ -34,6 +35,7 @@ const COUNT_OPTIONS: number[] = [20, 50, 100, 200];
 const COLUMN_OPTIONS: number[] = [2, 3, 4];
 const SET_OPTIONS: number[] = [1, 2, 4];
 const GRADES: number[] = [1, 2, 3];
+const DIALOG_MAX_WIDTH_VP: number = 420;
 
 @Entry
 @Component
@@ -143,6 +145,14 @@ struct Index {
     this.showMemberDialog(p.name, p.grade, id);
   }
 
+  /** 弹窗宽度：窗口 86% 但宽屏封顶（86% 在平板/2in1 上过宽）。 */
+  private dialogWidthVp(): number {
+    const d: display.Display = display.getDefaultDisplaySync();
+    const winVp: number = d.width / d.densityPixels;
+    const w: number = Math.round(winVp * 0.86);
+    return w > DIALOG_MAX_WIDTH_VP ? DIALOG_MAX_WIDTH_VP : w;
+  }
+
   /** 打开成员编辑弹窗（renameId = '' 表示新增）：数据预置后 openCustomDialog。 */
   private showMemberDialog(name: string, grade: number, renameId: string): void {
     const t: MemberDialogTexts = new MemberDialogTexts();
@@ -164,7 +174,7 @@ struct Index {
       },
       autoCancel: true,
       alignment: DialogAlignment.Center,
-      width: '86%',
+      width: this.dialogWidthVp(),
       onDidDisappear: (): void => {
         this.dialogId = -1;
       }

@@ -161,6 +161,8 @@ export struct MemberEditDialog {
   };
   @State name: string = '';
   @State grade: number = 2;
+  private nameController: TextInputController = new TextInputController();
+  private selectedOnce: boolean = false;
 
   aboutToAppear(): void {
     this.name = this.initialName;
@@ -185,13 +187,21 @@ export struct MemberEditDialog {
         .fontWeight(FontWeight.Bold)
         .fontColor($r('app.color.primary_text'))
 
-      TextInput({ text: this.name, placeholder: this.texts.nameHint })
+      TextInput({ text: this.name, placeholder: this.texts.nameHint, controller: this.nameController })
         .fontSize(15)
         .height(44)
         .backgroundColor($r('app.color.chip_bg'))
         .borderRadius(10)
+        .defaultFocus(true)
         .onChange((v: string) => {
           this.name = ProfileCodec.cutName(v);
+        })
+        .onFocus(() => {
+          // 弹窗首焦全选现有名字：直接键入即覆盖（改名免删字；须获焦后调用才生效）
+          if (!this.selectedOnce) {
+            this.selectedOnce = true;
+            this.nameController.setTextSelection(0, this.name.length);
+          }
         })
 
       Column({ space: 8 }) {
