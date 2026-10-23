@@ -20,3 +20,4 @@
 /keystore/
 __pycache__/
 /build-profile.json5
+/.shots/
