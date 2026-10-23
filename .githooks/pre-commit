@@ -20,3 +20,13 @@ if [ $? -ne 0 ]; then
   echo "  - 同键占位符（%s/%d/%N$s/%N$d）双语必须一致。"
   exit 1
 fi
+
+# 字体覆盖护栏：rawfile 打印字体 cmap ⊇ 资源全字符 + 数学符号 −×÷□ + 可打印 ASCII。
+py -3 scripts/check_font_coverage.py --check
+if [ $? -ne 0 ]; then
+  echo ""
+  echo "[pre-commit] 字体覆盖校验未通过，提交被拒绝。"
+  echo "  - 打印字体缺字形时位图静默缺字符（drawing.Font 无回退）；"
+  echo "  - 新增资源字符后需重新子集化（pyftsubset，保留现 cmap ∪ 新字符）。"
+  exit 1
+fi

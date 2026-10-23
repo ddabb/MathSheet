@@ -47,7 +47,8 @@ export class SheetRenderer {
   private static readonly ANSWER_RED: common2D.Color = { alpha: 255, red: 220, green: 38, blue: 38 };
   /** 题目黑色。 */
   private static readonly TEXT_BLACK: common2D.Color = { alpha: 255, red: 33, green: 33, blue: 33 };
-  /** 打印字体（思源黑体，rawfile 加载一次缓存；失败回退系统字体）。 */
+  /** 打印字体（Noto Sans SC = 思源黑体 Google 分发版，OFL；子集含数学符号 −×÷□，
+   * 由 scripts/check_font_coverage.py 护栏保证字符覆盖；加载失败回退系统字体）。 */
   private static typeface: drawing.Typeface | null = null;
   private static typefaceTried: boolean = false;
 
@@ -58,7 +59,7 @@ export class SheetRenderer {
     }
     SheetRenderer.typefaceTried = true;
     try {
-      SheetRenderer.typeface = drawing.Typeface.makeFromRawFile($rawfile('font/SourceHanSansSC-Regular.ttf'));
+      SheetRenderer.typeface = drawing.Typeface.makeFromRawFile($rawfile('font/NotoSansSC-Regular.ttf'));
     } catch (e) {
       SheetRenderer.typeface = null;
     }
