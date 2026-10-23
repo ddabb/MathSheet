@@ -23,6 +23,7 @@ import { SheetStore } from '../core/SheetStore';
 import { MemberScope } from '../core/ProfileCodec';
 import { ProfileStore } from '../core/ProfileStore';
 import { ExportUtil, ExportOutcome } from '../common/ExportUtil';
+import { WIDE_CONTENT_MAX_VP } from '../components/UiKit';
 
 /** 单套卷数据（题目 + 版面 + 该套规格；A/B/C/D 共享参数不同种子）。 */
 class SheetSetData {
@@ -700,6 +701,7 @@ struct PreviewPage {
       }
       .width('100%')
       .height('100%')
+      .constraintSize({ maxWidth: WIDE_CONTENT_MAX_VP })
 
       // 导出遮罩
       if (this.exporting !== 0) {

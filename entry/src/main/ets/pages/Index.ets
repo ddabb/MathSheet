@@ -28,7 +28,7 @@ import { ProfileStore } from '../core/ProfileStore';
 import { HeroCard } from '../components/HeroCard';
 import { MemberChip, MemberRowModel, MemberDialogTexts, MemberBar, MemberManage, MemberEditDialog } from '../components/MemberWidgets';
 import { LibraryPanel, MistakesPanel } from '../components/LibraryWidgets';
-import { SectionLabel, OptionChip, Segmented, ToggleRow, TabBarItem, InfoRow } from '../components/UiKit';
+import { SectionLabel, OptionChip, Segmented, ToggleRow, TabBarItem, InfoRow, WIDE_CONTENT_MAX_VP } from '../components/UiKit';
 
 const COUNT_OPTIONS: number[] = [20, 50, 100, 200];
 const COLUMN_OPTIONS: number[] = [2, 3, 4];
@@ -851,6 +851,7 @@ struct Index {
       .barHeight(54)
       .layoutWeight(1)
       .width('100%')
+      .constraintSize({ maxWidth: WIDE_CONTENT_MAX_VP })
       .onChange((i: number) => {
         this.currentTab = i;
         if (i === 1) {

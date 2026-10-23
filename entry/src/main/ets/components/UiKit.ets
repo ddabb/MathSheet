@@ -6,6 +6,8 @@
  * "参数类 + 单字面量调用"形态；文案由调用方解析（rm.getStringSync）后以 string 传入。
  */
 
+export const WIDE_CONTENT_MAX_VP: number = 640;
+
 export class SectionParam {
   text: string = '';
 }

@@ -14,6 +14,7 @@ import { MistakeStore } from '../core/MistakeStore';
 import { MemberScope } from '../core/ProfileCodec';
 import { ProfileStore } from '../core/ProfileStore';
 import { GradeParams } from '../common/PreviewParams';
+import { WIDE_CONTENT_MAX_VP } from '../components/UiKit';
 
 @Entry
 @Component
@@ -217,6 +218,7 @@ struct GradePage {
         Blank()
       }
       .width('100%')
+      .constraintSize({ maxWidth: WIDE_CONTENT_MAX_VP })
       .padding({ left: 16, right: 16, top: 12, bottom: 8 })
 
       if (this.sheet !== null && this.done) {
@@ -246,6 +248,7 @@ struct GradePage {
             .onClick(() => this.back())
         }
         .width('100%')
+        .constraintSize({ maxWidth: WIDE_CONTENT_MAX_VP })
         .layoutWeight(1)
         .alignItems(HorizontalAlign.Center)
       } else if (this.sheet !== null) {
@@ -268,6 +271,7 @@ struct GradePage {
           Blank()
         }
         .width('100%')
+        .constraintSize({ maxWidth: WIDE_CONTENT_MAX_VP })
         .layoutWeight(1)
         .alignItems(HorizontalAlign.Center)
 
@@ -288,6 +292,7 @@ struct GradePage {
           .width('100%')
         }
         .width('100%')
+        .constraintSize({ maxWidth: WIDE_CONTENT_MAX_VP })
         .padding({ left: 24, right: 24, top: 10, bottom: 30 })
       }
     }
