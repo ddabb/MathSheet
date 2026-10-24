@@ -5,11 +5,11 @@
 每次点击前重新 dump 按文本解析坐标（根治每日卡 +52px 位移类陷阱），逐站截图。
 
 故事线（产出 7 站 raw）：
-  s1 生成器（每日一练已练态）  s2 题卡预览 1/N   s3 批改进行中（首题）
-  s4 批改小结（对错各半）      s5 错题本（N 道）  s6 卷库（2 卷均批改）  s7 设置
+  s1 生成器（每日一练已练态）  s2 题卡预览 1/N   s3 在线作答（第 2 题输入中）
+  s4 在线作答结果页            s5 错题本（N 道）  s6 卷库（2 卷均批改）  s7 设置
 
-素材态：成员"小明"；卷库 2 卷（20 题已批 20/20 错 10 + 50 题已批 50/50 错 25）；
-错题本 10 道（50 题批改 25 道错先清空，再由 20 题批改产出 10 道）。
+素材态：成员"小明"；卷库 2 卷（20 题卷在线作答批 对 15/错 5 + 50 题卷手动批 对 25/错 25·5 分）；
+错题本 5 道（50 题批改 25 道错先清空，再由在线作答 5 道错产出）。
 
 用法：
   py -3 scripts/walkthrough_storyline.py --profile tablet --device 127.0.0.1:15555 --fresh
@@ -19,12 +19,14 @@
 
 产出：.shots/agc/<profile>_raw/sN_<name>_raw.jpeg
 后续：tablet 原生 3:2 直接拷贝交付；2in1 跑 scripts/process_store_shots_2in1.js；
-     完成后跑 scripts/check_shots_spec.py 校验。
+      phone 拷 .shots/phone_s*.jpeg 后跑 scripts/process_store_shots.js；
+      完成后跑 scripts/check_shots_spec.py 校验。
 """
 import argparse
 import io
 import json
 import os
+import re
 import subprocess
 import sys
 import time
@@ -41,7 +43,7 @@ SHOTS_ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".sh
 DUMP_DEVICE = "/data/local/tmp/walk_dump.json"
 SNAP_DEVICE = "/data/local/tmp/walk_snap.jpeg"
 
-STATIONS = ["s1_generator", "s2_preview", "s3_grading", "s4_summary",
+STATIONS = ["s1_generator", "s2_preview", "s3_quiz", "s4_quiz_result",
             "s5_mistakes", "s6_library", "s7_settings"]
 
 
@@ -320,6 +322,133 @@ def grade_current(w: Walker, right_n: int, wrong_n: int) -> None:
     log(f"  批改完成：对 {right_n} / 错 {wrong_n}（共 {total}）· 用时 5 分")
 
 
+# ---------- 在线作答走查 ----------
+
+QUESTION_RE = re.compile(r"^\d+\s*[+\-\u2212\u00d7\u00f7]\s*\d+\s*=$")
+COUNTER_RE = re.compile(r"^(\d+) / (\d+)$")
+
+
+def answer_of(q: str):
+    """题面 -> 期望答案（默认二年级族：两位数加减/表内乘除，双操作数）。"""
+    q = q.strip().rstrip("=").strip()
+    q = q.replace("\u2212", "-").replace("\u00d7", "*").replace("\u00f7", "/")
+    m = re.match(r"^(\d+)\s*([+\-*/])\s*(\d+)$", q)
+    if not m:
+        return None
+    a, op, b = int(m.group(1)), m.group(2), int(m.group(3))
+    if op == "+":
+        return a + b
+    if op == "-":
+        return a - b
+    if op == "*":
+        return a * b
+    return a // b
+
+
+def _quiz_counter(rows: list):
+    for r in rows:
+        m = COUNTER_RE.match(r["text"])
+        if m:
+            return int(m.group(1))
+    return None
+
+
+def _quiz_question(rows: list):
+    for r in rows:
+        if QUESTION_RE.match(r["text"]):
+            return r["text"]
+    return None
+
+
+def _quiz_keypad(rows: list) -> dict:
+    """键盘键位坐标：数字取同文本 y 最大者（输入框/题面在上方，键盘在底部）。"""
+    keys: dict = {}
+    for d in "0123456789":
+        best = None
+        for r in rows:
+            if r["text"] == d:
+                c = center(r["bounds"])
+                if c and (best is None or c[1] > best[1]):
+                    best = c
+        if best:
+            keys[d] = best
+    for sym in ("\u232b", "\u2713"):
+        for r in rows:
+            if r["text"] == sym:
+                c = center(r["bounds"])
+                if c:
+                    keys[sym] = c
+                    break
+    return keys
+
+
+def quiz_answer_all(w: Walker, wrong_at: set, snap_at: int = 2,
+                    snap_name: str = "s3_quiz") -> None:
+    """练习模式作答整卷：wrong_at 故意答错题号集合（1 基）；
+    第 snap_at 题输入首位后定格截 s3。计数器驱动防闪绿期重复作答；
+    答错反馈页点『下一题』前进（advance 已回作答态）。"""
+    expect = 1
+    snapped = False
+    stall = 0
+    while True:
+        rows = w.rows()
+        texts = [r["text"] for r in rows]
+        if any("作答完成" in t for t in texts):
+            break
+        if any("回答错误" in t for t in texts):
+            w.tap("下一题")
+            expect += 1
+            time.sleep(1.0)
+            continue
+        c = _quiz_counter(rows)
+        if c is None:
+            stall += 1
+            if stall > 12:
+                w.fail("quiz 计数器丢失 12 轮")
+            time.sleep(0.8)
+            continue
+        stall = 0
+        if c > expect:
+            expect = c
+            continue
+        if c < expect:
+            w.fail(f"quiz 计数器回退 c={c} expect={expect}")
+        q = _quiz_question(rows)
+        if q is None:
+            time.sleep(0.6)
+            continue
+        ans = answer_of(q)
+        if ans is None:
+            w.fail(f"quiz 题面解析失败：{q}")
+        keys = _quiz_keypad(rows)
+        if "\u2713" not in keys:
+            time.sleep(0.6)
+            continue
+        digits = str(ans) if expect not in wrong_at else ("1" if str(ans) != "1" else "2")
+        for i, ch in enumerate(digits):
+            if ch not in keys:
+                w.fail(f"quiz 键盘缺键 {ch}")
+            w.dev.click(keys[ch][0], keys[ch][1])
+            time.sleep(0.12)
+            if expect == snap_at and i == 0 and not snapped:
+                w.snap(snap_name, settle=0.6)  # s3：输入一半 + 键盘 + 进度条
+                snapped = True
+                time.sleep(0.3)
+        w.dev.click(keys["\u2713"][0], keys["\u2713"][1])
+        # 提交后等前进/答错反馈/结果，避免闪绿期重复作答
+        deadline = time.time() + 4.0
+        while time.time() < deadline:
+            rows = w.rows()
+            t2 = [r["text"] for r in rows]
+            if any("作答完成" in t for t in t2) or any("回答错误" in t for t in t2):
+                break
+            cc = _quiz_counter(rows)
+            if cc is not None and cc != expect:
+                break
+            time.sleep(0.25)
+        time.sleep(0.2)
+
+
 def run_story(dev: Device, profile: str, fresh: bool, hap: str) -> None:
     out_dir = os.path.join(SHOTS_ROOT, f"{profile}_raw")
     os.makedirs(out_dir, exist_ok=True)
@@ -375,7 +504,7 @@ def run_story(dev: Device, profile: str, fresh: bool, hap: str) -> None:
     w.tap("返回")
     w.wait_for("生成题卡")
 
-    log("== 批改 50 题卷（对 25 / 错 25） ==")
+    log("== 批改 50 题卷（对 25 / 错 25 · 手动批改素材态） ==")
     w.tap("卷库", exact=True)
     w.wait_for("批改")
     w.tap_y_sorted("批改", idx=1, exact=True)  # 精确匹配按钮：防"未批改"meta 含"批改"污染 y 序
@@ -393,16 +522,19 @@ def run_story(dev: Device, profile: str, fresh: bool, hap: str) -> None:
     w.wait_gone("不可恢复")
     w.wait_for("错题会收进", timeout=30)
 
-    log("== 批改 20 题卷（对 10 / 错 10）+ s3/s4 ==")
+    log("== 在线作答 20 题卷（练习 · 对 15 / 错 5）+ s3/s4 ==")
     w.tap("卷库", exact=True)
     w.wait_for("批改")
-    w.tap_y_sorted("批改", idx=0, exact=True)  # 最新 = 20 题卷
-    w.wait_for("已批 0 / 20")
-    w.snap("s3_grading")
-    grade_current(w, 10, 10)
-    w.snap("s4_summary")
+    w.tap("在线作答")  # 唯一未批卷（20 题）卡片的品牌色入口
+    w.wait_for("开始作答")
+    w.wait_for("共 20 题")
+    w.tap("开始作答")  # 默认练习模式：每题提交即判分
+    quiz_answer_all(w, {4, 8, 12, 16, 20})
+    w.wait_for("作答完成")
+    w.wait_for("共 20 题 · 对 15 · 错 5")
+    w.snap("s4_quiz_result")
     w.tap("返回")
-    w.wait_for("批改")
+    w.wait_for("批改")  # 自卷库卡片入口推入，返回即回 Index 卷库 tab
 
     log("== 收尾站点截图 s1/s5/s6/s7 ==")
     w.tap("生成", exact=True)
@@ -411,6 +543,7 @@ def run_story(dev: Device, profile: str, fresh: bool, hap: str) -> None:
     w.snap("s1_generator")
     w.tap("错题本", exact=True)
     w.wait_for("清空错题本")
+    w.wait_for("共 5 道错题")
     w.snap("s5_mistakes")
     w.tap("卷库", exact=True)
     w.wait_for("批改")
