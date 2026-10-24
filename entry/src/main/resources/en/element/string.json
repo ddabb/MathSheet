@@ -345,6 +345,42 @@
       "value": "Leave"
     },
     {
+      "name": "grade_quick_mode",
+      "value": "Quick Mark"
+    },
+    {
+      "name": "grade_step_mode",
+      "value": "One by One"
+    },
+    {
+      "name": "grade_quick_hint",
+      "value": "Checked on paper? Tap the wrong ones, the rest are marked right"
+    },
+    {
+      "name": "grade_quick_done",
+      "value": "Finish Marking"
+    },
+    {
+      "name": "grade_duration_label",
+      "value": "Time Spent"
+    },
+    {
+      "name": "grade_duration_none",
+      "value": "Skip"
+    },
+    {
+      "name": "grade_duration_min",
+      "value": "%1$d min"
+    },
+    {
+      "name": "grade_duration_ms",
+      "value": "%1$d min %2$d s"
+    },
+    {
+      "name": "grade_summary_drill",
+      "value": "Redo Mistakes"
+    },
+    {
       "name": "library_open",
       "value": "Open"
     },

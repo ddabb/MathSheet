@@ -19,11 +19,11 @@ import { GradePresets, PresetEntry } from '../core/GradePresets';
 import { TypeFamilies, TypeFamily } from '../common/TypeFamilies';
 import { DailyState, DailyStore } from '../common/DailyStore';
 import { PreviewParams, GradeParams } from '../common/PreviewParams';
-import { StoredMeta } from '../core/SheetCodec';
+import { StoredMeta, StoredSheet } from '../core/SheetCodec';
 import { SheetStore } from '../core/SheetStore';
 import { MistakeEntry } from '../core/MistakeCodec';
 import { MistakeStore } from '../core/MistakeStore';
-import { MistakeDrill } from '../core/MistakeDrill';
+import { DrillFlow } from '../common/DrillFlow';
 import { Profile, ProfileCodec, ProfileIndex } from '../core/ProfileCodec';
 import { ProfileStore } from '../core/ProfileStore';
 import { HeroCard } from '../components/HeroCard';
@@ -533,18 +533,14 @@ struct Index {
     if (ctx === undefined) {
       return;
     }
-    const rm = ctx.resourceManager;
-    const id: string = SheetStore.newId();
-    const title: string = rm.getStringSync($r('app.string.mistakes_drill_title').id);
-    const sheet = MistakeDrill.buildSheet(id, Date.now(), title, this.mistakes,
-      Math.floor(Math.random() * 2147483647), 200);
+    const sheet: StoredSheet | null = DrillFlow.buildDrillSheet(ProfileStore.scopeCurrent(ctx),
+      this.mistakes, this.strOf($r('app.string.mistakes_drill_title')));
     if (sheet === null) {
       return;
     }
-    SheetStore.saveSheet(ProfileStore.scopeCurrent(ctx), sheet);
     this.getUIContext().getPromptAction()
       .showToast({ message: $r('app.string.mistakes_drill_toast'), duration: 2000 });
-    this.openLibrarySheet(id);
+    this.openLibrarySheet(sheet.id);
   }
 
   // ---------- 生成页 ----------

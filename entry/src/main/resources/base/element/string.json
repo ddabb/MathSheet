@@ -345,6 +345,42 @@
       "value": "先离开"
     },
     {
+      "name": "grade_quick_mode",
+      "value": "快速批改"
+    },
+    {
+      "name": "grade_step_mode",
+      "value": "逐题批改"
+    },
+    {
+      "name": "grade_quick_hint",
+      "value": "对照答案页点选做错的题，其余自动记对"
+    },
+    {
+      "name": "grade_quick_done",
+      "value": "完成批改"
+    },
+    {
+      "name": "grade_duration_label",
+      "value": "批改用时"
+    },
+    {
+      "name": "grade_duration_none",
+      "value": "不记录"
+    },
+    {
+      "name": "grade_duration_min",
+      "value": "%1$d 分"
+    },
+    {
+      "name": "grade_duration_ms",
+      "value": "%1$d 分 %2$d 秒"
+    },
+    {
+      "name": "grade_summary_drill",
+      "value": "错题重练"
+    },
+    {
       "name": "library_open",
       "value": "打开"
     },

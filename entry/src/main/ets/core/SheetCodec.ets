@@ -38,11 +38,13 @@ export class StoredSheet {
   seed: number;
   items: StoredItem[];
   marks: number[];
+  /** 批改用时（秒；0 = 未记录，JSON 省略该字段保持旧黄金兼容）。 */
+  durationSec: number;
 
   constructor(id: string, createdAt: number, title: string, grade: number,
               typeIds: string[], count: number, columns: number,
               headerOn: boolean, answerOn: boolean, seed: number,
-              items: StoredItem[], marks: number[]) {
+              items: StoredItem[], marks: number[], durationSec: number = 0) {
     this.id = id;
     this.createdAt = createdAt;
     this.title = title;
@@ -55,6 +57,7 @@ export class StoredSheet {
     this.seed = seed;
     this.items = items;
     this.marks = marks;
+    this.durationSec = durationSec;
   }
 }
 
@@ -67,9 +70,12 @@ export class StoredMeta {
   count: number;
   gradedCount: number;
   wrongCount: number;
+  /** 批改用时（秒；0 = 未记录，索引 JSON 省略该字段）。 */
+  durationSec: number;
 
   constructor(id: string, createdAt: number, title: string, grade: number,
-              count: number, gradedCount: number, wrongCount: number) {
+              count: number, gradedCount: number, wrongCount: number,
+              durationSec: number = 0) {
     this.id = id;
     this.createdAt = createdAt;
     this.title = title;
@@ -77,6 +83,7 @@ export class StoredMeta {
     this.count = count;
     this.gradedCount = gradedCount;
     this.wrongCount = wrongCount;
+    this.durationSec = durationSec;
   }
 }
 
@@ -137,7 +144,8 @@ export class SheetCodec {
 
   static metaOf(sheet: StoredSheet): StoredMeta {
     return new StoredMeta(sheet.id, sheet.createdAt, sheet.title, sheet.grade,
-      sheet.count, SheetCodec.gradedCountOf(sheet), SheetCodec.wrongCountOf(sheet));
+      sheet.count, SheetCodec.gradedCountOf(sheet), SheetCodec.wrongCountOf(sheet),
+      sheet.durationSec);
   }
 
   // ---------- 整卷编解码（sheets/{id}.json） ----------
@@ -157,6 +165,9 @@ export class SheetCodec {
       'items': sheet.items as Object,
       'marks': sheet.marks as Object
     };
+    if (sheet.durationSec > 0) {
+      root['durationSec'] = sheet.durationSec;
+    }
     return JSON.stringify(root);
   }
 
@@ -202,7 +213,7 @@ export class SheetCodec {
       SheetCodec.str(r['title'], ''), SheetCodec.num(r['grade'], 0),
       typeIds, SheetCodec.num(r['count'], items.length), SheetCodec.num(r['columns'], 3),
       SheetCodec.bool(r['headerOn'], true), SheetCodec.bool(r['answerOn'], true),
-      SheetCodec.num(r['seed'], 0), items, marks);
+      SheetCodec.num(r['seed'], 0), items, marks, SheetCodec.num(r['durationSec'], 0));
   }
 
   // ---------- 索引编解码（sheets/index.json，最新在前） ----------
@@ -219,6 +230,9 @@ export class SheetCodec {
         'gradedCount': m.gradedCount,
         'wrongCount': m.wrongCount
       };
+      if (m.durationSec > 0) {
+        o['durationSec'] = m.durationSec;
+      }
       arr.push(o);
     }
     return JSON.stringify(arr);
@@ -241,7 +255,7 @@ export class SheetCodec {
       out.push(new StoredMeta(id, SheetCodec.num(r['createdAt'], 0),
         SheetCodec.str(r['title'], ''), SheetCodec.num(r['grade'], 0),
         SheetCodec.num(r['count'], 0), SheetCodec.num(r['gradedCount'], 0),
-        SheetCodec.num(r['wrongCount'], 0)));
+        SheetCodec.num(r['wrongCount'], 0), SheetCodec.num(r['durationSec'], 0)));
     }
     return out;
   }

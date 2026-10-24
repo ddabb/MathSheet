@@ -37,6 +37,19 @@ export struct LibraryPanel {
     return `${moS}-${daS}`;
   }
 
+  /** 用时展示文案（120 → “2 分”；125 → “2 分 5 秒”）。 */
+  private durationText(sec: number): string {
+    const rm = this.getUIContext().getHostContext()?.resourceManager;
+    if (rm === undefined) {
+      return '';
+    }
+    if (sec % 60 === 0) {
+      return rm.getStringSync($r('app.string.grade_duration_min').id, sec / 60);
+    }
+    return rm.getStringSync($r('app.string.grade_duration_ms').id,
+      Math.floor(sec / 60), sec % 60);
+  }
+
   private metaText(m: StoredMeta): string {
     const rm = this.getUIContext().getHostContext()?.resourceManager;
     if (rm === undefined) {
@@ -49,7 +62,11 @@ export struct LibraryPanel {
     const statusText: string = m.gradedCount > 0
       ? rm.getStringSync(statusRes.id, m.gradedCount, m.count, m.wrongCount)
       : rm.getStringSync(statusRes.id);
-    return `${base} · ${statusText}`;
+    let text: string = `${base} · ${statusText}`;
+    if (m.durationSec > 0) {
+      text = `${text} · ${this.durationText(m.durationSec)}`;
+    }
+    return text;
   }
 
   @Builder

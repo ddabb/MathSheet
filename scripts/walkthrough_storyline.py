@@ -236,6 +236,36 @@ class Walker:
         log(f"  TAP ({h['cx']},{h['cy']}) <- [{h['text'][:24]}] (y 序第 {idx})")
         return h
 
+    def tap_scroll(self, kw: str, exact: bool = False, idx: int = 0, rounds: int = 6) -> dict:
+        """点选目标：当前屏未见则逐屏上滑滚动表单直至出现（手机竖屏表单超一屏）。
+        平板/2in1 一屏放得下则零滑动，行为与 tap 一致。"""
+        hits = self.find(kw, exact)
+        sw, sh = self.screen_size()
+        for _ in range(rounds):
+            if hits:
+                break
+            self.dev.shell(f"uitest uiInput swipe {sw // 2} {int(sh * 0.62)} "
+                           f"{sw // 2} {int(sh * 0.38)} 400")
+            time.sleep(1.2)
+            hits = self.find(kw, exact)
+        if len(hits) <= idx:
+            self.fail(f"[{kw}] 滚动查找未命中（exact={exact}）")
+        h = hits[idx]
+        self.dev.click(h["cx"], h["cy"])
+        log(f"  TAP ({h['cx']},{h['cy']}) <- [{h['text'][:24]}]（滚动定位）")
+        return h
+
+    def scroll_top(self, anchor: str = "每日一练", rounds: int = 6) -> None:
+        """回滚表单至顶（锚点可见即止）：滚动选过题数后，收尾 s1 截图须回表单顶部。
+        平板/2in1 锚点本就可见，零滑动。"""
+        for _ in range(rounds):
+            if self.find(anchor):
+                return
+            sw, sh = self.screen_size()
+            self.dev.shell(f"uitest uiInput swipe {sw // 2} {int(sh * 0.38)} "
+                           f"{sw // 2} {int(sh * 0.62)} 400")
+            time.sleep(1.2)
+
     def clear_and_type(self, new_text: str) -> None:
         """定位当前屏唯一 TextInput：清空后输入。占位文案不进 a11y 树，故按 type 定位。
         退格次数 = 当前 value 长度（读不到则 12 兜底）；KEYCODE_DEL = 2055。"""
@@ -274,7 +304,8 @@ class Walker:
 
 
 def grade_current(w: Walker, right_n: int, wrong_n: int) -> None:
-    """批改当前卷：交替标记 对/错 各 N 次，直到批改完成页；小结页校验『共 N 题』防错卷。"""
+    """批改当前卷：交替标记 对/错 各 N 次，直到批改完成页；小结页校验『共 N 题』防错卷。
+    完成后点选『5 分』用时速记（随卷持久化，s6 卷库元信息可见）。"""
     w.wait_for("已批")
     right = w.wait_for("对", exact=True)[0]
     wrong = w.wait_for("错", exact=True)[0]
@@ -285,7 +316,8 @@ def grade_current(w: Walker, right_n: int, wrong_n: int) -> None:
         time.sleep(0.25)
     w.wait_for("批改完成", timeout=60)
     w.wait_for(f"共 {total} 题")
-    log(f"  批改完成：对 {right_n} / 错 {wrong_n}（共 {total}）")
+    w.tap_y_sorted("5 分", idx=0, exact=True)  # 精确匹配防"15 分"子串污染
+    log(f"  批改完成：对 {right_n} / 错 {wrong_n}（共 {total}）· 用时 5 分")
 
 
 def run_story(dev: Device, profile: str, fresh: bool, hap: str) -> None:
@@ -310,11 +342,14 @@ def run_story(dev: Device, profile: str, fresh: bool, hap: str) -> None:
     w.launch_app()
 
     if profile == "2in1":
-        # ContainerModal 窗口双击标题栏最大化（仅首启窗口态需要；已最大化勿重复执行）
-        b = center(w.wait_for("生成题卡")[0]["bounds"])
-        dev.shell(f"uitest uiInput doubleClick {b[0] if b else 1560} 316")
-        time.sleep(2)
-        w.wait_for("生成题卡")
+        # module.json5 metadata ohos.ability.window.isMaximize 首启即最大化（仅自由窗口态生效）；
+        # 兜底：配置未生效仍为悬浮窗（根宽 < 2500px）时双击标题栏手动最大化
+        rw, _ = w.screen_size()
+        if rw < 2500:
+            b = center(w.wait_for("生成题卡")[0]["bounds"])
+            dev.shell(f"uitest uiInput doubleClick {b[0] if b else 1560} 316")
+            time.sleep(2)
+            w.wait_for("生成题卡")
 
     log("== 改名：默认 -> 小明 ==")
     w.tap("设置", exact=True)
@@ -333,7 +368,7 @@ def run_story(dev: Device, profile: str, fresh: bool, hap: str) -> None:
     w.wait_for("生成题卡")
 
     log("== 题数 20 生成 + s2 预览 ==")
-    w.tap("20", exact=True)
+    w.tap_scroll("20", exact=True)  # 手机竖屏题数在折叠区，滚动定位；宽屏零滑动
     w.tap("生成题卡")
     w.wait_for("导出 PDF")
     w.snap("s2_preview")
@@ -372,6 +407,7 @@ def run_story(dev: Device, profile: str, fresh: bool, hap: str) -> None:
     log("== 收尾站点截图 s1/s5/s6/s7 ==")
     w.tap("生成", exact=True)
     w.wait_for("生成题卡")
+    w.scroll_top()  # 手机滚动选过题数后回顶部，s1 与宽屏同构（Hero 卡+年级题型区）
     w.snap("s1_generator")
     w.tap("错题本", exact=True)
     w.wait_for("清空错题本")

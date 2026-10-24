@@ -111,6 +111,42 @@ export default function sheetM34Test() {
       expect(SheetCodec.metaListFromJson('[{"title":"x"},{"id":"ok"}]').length).assertEqual(1);
     });
 
+    // ---- durationSec 用时字段（0 省略保黄金兼容；>0 往返） ----
+    it('SheetCodec_durationRoundTrip', 0, () => {
+      const sheet: StoredSheet = sheetOf('m34d0', '用时卷', [itemOf(0)], [1]);
+      // 默认 0：JSON 省略字段（旧黄金不变）
+      const j0: string = SheetCodec.sheetToJson(sheet);
+      expect(j0.indexOf('durationSec') < 0).assertTrue();
+      const back0: StoredSheet | null = SheetCodec.sheetFromJson(j0);
+      expect(back0 !== null).assertTrue();
+      if (back0 !== null) {
+        expect(back0.durationSec).assertEqual(0);
+      }
+      // 设置后整卷往返 + meta 传递
+      sheet.durationSec = 300;
+      const j1: string = SheetCodec.sheetToJson(sheet);
+      expect(j1.indexOf('"durationSec":300') >= 0).assertTrue();
+      const back1: StoredSheet | null = SheetCodec.sheetFromJson(j1);
+      expect(back1 !== null).assertTrue();
+      if (back1 !== null) {
+        expect(back1.durationSec).assertEqual(300);
+      }
+      const meta: StoredMeta = SheetCodec.metaOf(sheet);
+      expect(meta.durationSec).assertEqual(300);
+      const metas: StoredMeta[] = SheetCodec.metaListFromJson(SheetCodec.metaListToJson([meta]));
+      expect(metas.length).assertEqual(1);
+      expect(metas[0].durationSec).assertEqual(300);
+      // meta 0 不写字段；脏数据缺字段回 0
+      const meta0: StoredMeta = SheetCodec.metaOf(sheetOf('m34d1', '零', [itemOf(1)], [0]));
+      expect(SheetCodec.metaListToJson([meta0]).indexOf('durationSec') < 0).assertTrue();
+      const dirty: StoredSheet | null =
+        SheetCodec.sheetFromJson('{"id":"m34d2","items":[{"q":"1 =","key":"k"}]}');
+      expect(dirty !== null).assertTrue();
+      if (dirty !== null) {
+        expect(dirty.durationSec).assertEqual(0);
+      }
+    });
+
     // ---- MistakeCodec 全字段往返 + 钳制 ----
     it('MistakeCodec_roundTrip', 0, () => {
       const es: MistakeEntry[] = [
