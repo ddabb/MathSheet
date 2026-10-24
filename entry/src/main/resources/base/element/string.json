@@ -499,6 +499,102 @@
     {
       "name": "member_confirm",
       "value": "确定"
+    },
+    {
+      "name": "quiz_entry_button",
+      "value": "在线作答"
+    },
+    {
+      "name": "quiz_question_count",
+      "value": "共 %d 题"
+    },
+    {
+      "name": "quiz_mode_practice",
+      "value": "练习"
+    },
+    {
+      "name": "quiz_mode_test",
+      "value": "测验"
+    },
+    {
+      "name": "quiz_mode_practice_desc",
+      "value": "每题提交后立即判分，答错当场看正确答案"
+    },
+    {
+      "name": "quiz_mode_test_desc",
+      "value": "全部作答完成后统一判分"
+    },
+    {
+      "name": "quiz_start",
+      "value": "开始作答"
+    },
+    {
+      "name": "quiz_progress_answered",
+      "value": "已作答 %1$d/%2$d"
+    },
+    {
+      "name": "quiz_correct_feedback",
+      "value": "回答正确"
+    },
+    {
+      "name": "quiz_wrong_feedback",
+      "value": "回答错误"
+    },
+    {
+      "name": "quiz_your_answer",
+      "value": "你的答案：%s"
+    },
+    {
+      "name": "quiz_correct_answer",
+      "value": "正确答案：%s"
+    },
+    {
+      "name": "quiz_next",
+      "value": "下一题"
+    },
+    {
+      "name": "quiz_input_empty_toast",
+      "value": "请输入答案"
+    },
+    {
+      "name": "quiz_done_title",
+      "value": "作答完成"
+    },
+    {
+      "name": "quiz_done_summary",
+      "value": "共 %1$d 题 · 对 %2$d · 错 %3$d"
+    },
+    {
+      "name": "quiz_duration_sec",
+      "value": "%d 秒"
+    },
+    {
+      "name": "quiz_duration_used",
+      "value": "用时 %s"
+    },
+    {
+      "name": "quiz_wrong_list_header",
+      "value": "做错的题"
+    },
+    {
+      "name": "quiz_exit_title",
+      "value": "放弃本次作答？"
+    },
+    {
+      "name": "quiz_exit_msg",
+      "value": "当前进度不会保存"
+    },
+    {
+      "name": "quiz_exit_keep",
+      "value": "继续作答"
+    },
+    {
+      "name": "quiz_exit_leave",
+      "value": "放弃"
+    },
+    {
+      "name": "quiz_already_graded_toast",
+      "value": "该卷已批改，不能在线作答"
     }
   ]
 }

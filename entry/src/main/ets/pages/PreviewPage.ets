@@ -17,8 +17,8 @@ import { SheetGen } from '../core/SheetGen';
 import { SheetItem } from '../core/SheetModel';
 import { LayoutResult, LayoutSpec, SheetLayout } from '../core/SheetLayout';
 import { PageRenderRequest, SheetRenderer } from '../render/SheetRenderer';
-import { PreviewParams } from '../common/PreviewParams';
-import { StoredItem, StoredSheet } from '../core/SheetCodec';
+import { PreviewParams, QuizParams } from '../common/PreviewParams';
+import { StoredItem, StoredSheet, SheetCodec } from '../core/SheetCodec';
 import { SheetStore } from '../core/SheetStore';
 import { MemberScope } from '../core/ProfileCodec';
 import { ProfileStore } from '../core/ProfileStore';
@@ -51,6 +51,8 @@ struct PreviewPage {
   @State totalPages: number = 0;
   @State pageBitmaps: Array<Array<image.PixelMap | undefined>> = [];
   @State exporting: number = 0;
+  /** 当前套是否可在线作答（未批改）。 */
+  @State quizReady: boolean = false;
 
   private params: PreviewParams | null = null;
   private setsData: SheetSetData[] = [];
@@ -97,6 +99,41 @@ struct PreviewPage {
   aboutToDisappear(): void {
     this.renderEpoch++;
     this.releaseAll();
+  }
+
+  /** 返回本页（在线作答完成/放弃后）刷新可作答态。 */
+  onPageShow(): void {
+    if (this.storedMode || this.savedIds.length > 0) {
+      this.refreshQuizReady();
+    }
+  }
+
+  /** 在线作答目标卷：卷库模式 = 本卷；新鲜模式 = 当前套物化卷。 */
+  private currentQuizId(): string {
+    if (this.storedMode) {
+      return this.storedSheetId;
+    }
+    const id: string | undefined = this.savedIds[this.currentSet];
+    return id !== undefined ? id : '';
+  }
+
+  private refreshQuizReady(): void {
+    const id: string = this.currentQuizId();
+    if (id === '') {
+      this.quizReady = false;
+      return;
+    }
+    const s: StoredSheet | null = SheetStore.loadSheet(this.storeScope, id);
+    this.quizReady = s !== null && SheetCodec.gradedCountOf(s) === 0;
+  }
+
+  private startQuiz(): void {
+    const id: string = this.currentQuizId();
+    if (id === '') {
+      return;
+    }
+    const params: QuizParams = { sheetId: id };
+    this.getUIContext().getRouter().pushUrl({ url: 'pages/QuizPage', params: params });
   }
 
   private setupScale(): void {
@@ -212,6 +249,7 @@ struct PreviewPage {
       }
       this.savedIds = ids;
     }
+    this.quizReady = true;
     this.resetView();
     if (rm !== undefined && duplicatesTotal === 0) {
       this.getUIContext().getPromptAction()
@@ -259,6 +297,7 @@ struct PreviewPage {
     sd.qPages = sd.layout.pages.length;
     this.setsData = [sd];
     this.setCount = 1;
+    this.refreshQuizReady();
     this.resetView();
   }
 
@@ -538,6 +577,7 @@ struct PreviewPage {
     this.qPages = this.setsData[s].qPages;
     this.totalPages = this.totalPagesOfSet(s);
     this.ensureAround(s, 0);
+    this.refreshQuizReady();
     this.swiperController.changeIndex(0, false);
   }
 
@@ -664,6 +704,20 @@ struct PreviewPage {
           this.current = idx;
           this.ensureAround(this.currentSet, idx);
         })
+
+        // 在线作答入口（未批改卷才展示）
+        if (this.quizReady) {
+          Button($r('app.string.quiz_entry_button'))
+            .width('100%')
+            .height(44)
+            .fontSize(16)
+            .fontWeight(FontWeight.Bold)
+            .fontColor($r('app.color.on_accent_text'))
+            .backgroundColor($r('app.color.brand'))
+            .borderRadius(22)
+            .margin({ left: 16, right: 16, top: 4 })
+            .onClick(() => this.startQuiz())
+        }
 
         // 底栏：页码 + 换一批（新鲜模式）+ 保存图片 + 导出 PDF
         Row({ space: 10 }) {

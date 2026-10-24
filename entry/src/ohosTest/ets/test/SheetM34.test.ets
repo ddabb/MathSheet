@@ -24,6 +24,7 @@ import { SheetStore } from '../../../main/ets/core/SheetStore';
 import { MistakeStore } from '../../../main/ets/core/MistakeStore';
 import { MemberScope } from '../../../main/ets/core/ProfileCodec';
 import { PdfCodec } from '../../../main/ets/core/PdfCodec';
+import { QuizJudge } from '../../../main/ets/core/QuizJudge';
 import { pdfService } from '@kit.PDFKit';
 import { SheetGen } from '../../../main/ets/core/SheetGen';
 import { GradePresets, PresetEntry } from '../../../main/ets/core/GradePresets';
@@ -366,6 +367,41 @@ export default function sheetM34Test() {
       // 清空
       MistakeStore.clearAll(scope);
       expect(MistakeStore.load(scope).length).assertEqual(0);
+    });
+
+    // ---- QuizJudge 在线作答判分（推导协议 + 判分 + 全题型覆盖） ----
+    it('QuizJudge_expectedAndJudge', 0, () => {
+      // 非填空：a = q + ' ' + 结果 → 取 q 后缀
+      expect(QuizJudge.expectedAnswerOf('23 + 15 =', '23 + 15 = 38')).assertEqual('38');
+      expect(QuizJudge.expectedAnswerOf('(15 + 8) × 3 =', '(15 + 8) × 3 = 69')).assertEqual('69');
+      // 填空：□ 位扫描（挖操作数/挖结果/多位值）
+      expect(QuizJudge.expectedAnswerOf('□ + 5 = 8', '3 + 5 = 8')).assertEqual('3');
+      expect(QuizJudge.expectedAnswerOf('3 + □ = 8', '3 + 5 = 8')).assertEqual('5');
+      expect(QuizJudge.expectedAnswerOf('3 + 5 = □', '3 + 5 = 8')).assertEqual('8');
+      expect(QuizJudge.expectedAnswerOf('□ × 3 = 36', '12 × 3 = 36')).assertEqual('12');
+      // 兜底：a 最后一个空格分隔 token
+      expect(QuizJudge.expectedAnswerOf('x', 'a b 42')).assertEqual('42');
+      // 判分：数值比较（容忍前导零）、空/非数字拒绝
+      expect(QuizJudge.isCorrect('38', '38')).assertTrue();
+      expect(QuizJudge.isCorrect('069', '69')).assertTrue();
+      expect(QuizJudge.isCorrect('69', '68')).assertFalse();
+      expect(QuizJudge.isCorrect('', '69')).assertFalse();
+      expect(QuizJudge.isCorrect('6x', '69')).assertFalse();
+      expect(QuizJudge.isCorrect('0', '0')).assertTrue();
+    });
+
+    // ---- QuizJudge 全预设覆盖（生成器全部题型可推导出非空数字答案） ----
+    it('QuizJudge_coversAllPresets', 0, () => {
+      const digitRe: RegExp = /^\d+$/;
+      for (const e of GradePresets.ENTRIES) {
+        const traced = SheetGen.buildMultiSheetTraced([e], 12345, 24);
+        expect(traced.items.length > 0).assertTrue();
+        for (const t of traced.items) {
+          const exp: string = QuizJudge.expectedAnswerOf(t.item.questionText, t.item.answerText);
+          expect(exp.length > 0).assertTrue();
+          expect(digitRe.test(exp)).assertTrue();
+        }
+      }
     });
 
     // ---- PdfCodec A4 合成冒烟（PixelMap → PNG → PDF 字节校验） ----

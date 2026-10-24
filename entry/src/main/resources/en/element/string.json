@@ -499,6 +499,102 @@
     {
       "name": "member_confirm",
       "value": "OK"
+    },
+    {
+      "name": "quiz_entry_button",
+      "value": "Answer Online"
+    },
+    {
+      "name": "quiz_question_count",
+      "value": "%d questions"
+    },
+    {
+      "name": "quiz_mode_practice",
+      "value": "Practice"
+    },
+    {
+      "name": "quiz_mode_test",
+      "value": "Test"
+    },
+    {
+      "name": "quiz_mode_practice_desc",
+      "value": "Graded instantly after each question, corrections shown right away"
+    },
+    {
+      "name": "quiz_mode_test_desc",
+      "value": "All questions graded together when finished"
+    },
+    {
+      "name": "quiz_start",
+      "value": "Start"
+    },
+    {
+      "name": "quiz_progress_answered",
+      "value": "Answered %1$d/%2$d"
+    },
+    {
+      "name": "quiz_correct_feedback",
+      "value": "Correct!"
+    },
+    {
+      "name": "quiz_wrong_feedback",
+      "value": "Incorrect"
+    },
+    {
+      "name": "quiz_your_answer",
+      "value": "Your answer: %s"
+    },
+    {
+      "name": "quiz_correct_answer",
+      "value": "Correct answer: %s"
+    },
+    {
+      "name": "quiz_next",
+      "value": "Next"
+    },
+    {
+      "name": "quiz_input_empty_toast",
+      "value": "Enter an answer first"
+    },
+    {
+      "name": "quiz_done_title",
+      "value": "Finished"
+    },
+    {
+      "name": "quiz_done_summary",
+      "value": "%1$d questions · %2$d right · %3$d wrong"
+    },
+    {
+      "name": "quiz_duration_sec",
+      "value": "%d s"
+    },
+    {
+      "name": "quiz_duration_used",
+      "value": "Time %s"
+    },
+    {
+      "name": "quiz_wrong_list_header",
+      "value": "Missed questions"
+    },
+    {
+      "name": "quiz_exit_title",
+      "value": "Quit this session?"
+    },
+    {
+      "name": "quiz_exit_msg",
+      "value": "Progress will not be saved"
+    },
+    {
+      "name": "quiz_exit_keep",
+      "value": "Keep going"
+    },
+    {
+      "name": "quiz_exit_leave",
+      "value": "Quit"
+    },
+    {
+      "name": "quiz_already_graded_toast",
+      "value": "This sheet is already graded"
     }
   ]
 }

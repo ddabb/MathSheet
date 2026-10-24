@@ -30,3 +30,8 @@ export interface PreviewParams {
 export interface GradeParams {
   sheetId: string;
 }
+
+/** 在线作答页路由参数（预览页按钮 / 卷库卡片 → 在线作答）。 */
+export interface QuizParams {
+  sheetId: string;
+}

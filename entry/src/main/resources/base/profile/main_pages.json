@@ -2,6 +2,7 @@
   "src": [
     "pages/Index",
     "pages/PreviewPage",
-    "pages/GradePage"
+    "pages/GradePage",
+    "pages/QuizPage"
   ]
 }

@@ -18,7 +18,7 @@ import { display } from '@kit.ArkUI';
 import { GradePresets, PresetEntry } from '../core/GradePresets';
 import { TypeFamilies, TypeFamily } from '../common/TypeFamilies';
 import { DailyState, DailyStore } from '../common/DailyStore';
-import { PreviewParams, GradeParams } from '../common/PreviewParams';
+import { PreviewParams, GradeParams, QuizParams } from '../common/PreviewParams';
 import { StoredMeta, StoredSheet } from '../core/SheetCodec';
 import { SheetStore } from '../core/SheetStore';
 import { MistakeEntry } from '../core/MistakeCodec';
@@ -475,6 +475,11 @@ struct Index {
     this.getUIContext().getRouter().pushUrl({ url: 'pages/GradePage', params: params });
   }
 
+  private openQuizSheet(id: string): void {
+    const params: QuizParams = { sheetId: id };
+    this.getUIContext().getRouter().pushUrl({ url: 'pages/QuizPage', params: params });
+  }
+
   private confirmDeleteSheet(m: StoredMeta): void {
     const param: AlertDialogParamWithButtons = {
       title: $r('app.string.library_delete_title'),
@@ -728,9 +733,11 @@ struct Index {
       goLabel: this.strOf($r('app.string.go_generate')),
       openLabel: this.strOf($r('app.string.library_open')),
       gradeLabel: this.strOf($r('app.string.library_grade')),
+      quizLabel: this.strOf($r('app.string.quiz_entry_button')),
       deleteLabel: this.strOf($r('app.string.library_delete')),
       onOpen: (id: string) => this.openLibrarySheet(id),
       onGrade: (id: string) => this.gradeLibrarySheet(id),
+      onQuiz: (id: string) => this.openQuizSheet(id),
       onDelete: (m: StoredMeta) => this.confirmDeleteSheet(m),
       onGo: () => {
         this.currentTab = 0;

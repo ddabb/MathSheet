@@ -18,10 +18,13 @@ export struct LibraryPanel {
   private goLabel: string = '';
   private openLabel: string = '';
   private gradeLabel: string = '';
+  private quizLabel: string = '';
   private deleteLabel: string = '';
   private onOpen: (id: string) => void = (_id: string): void => {
   };
   private onGrade: (id: string) => void = (_id: string): void => {
+  };
+  private onQuiz: (id: string) => void = (_id: string): void => {
   };
   private onDelete: (m: StoredMeta) => void = (_m: StoredMeta): void => {
   };
@@ -101,6 +104,16 @@ export struct LibraryPanel {
           .borderRadius(14)
           .padding({ left: 14, right: 14, top: 6, bottom: 6 })
           .onClick(() => this.onOpen(m.id))
+        if (m.gradedCount === 0) {
+          Text(this.quizLabel)
+            .fontSize(13)
+            .fontWeight(FontWeight.Bold)
+            .fontColor($r('app.color.brand'))
+            .backgroundColor($r('app.color.brand_tint'))
+            .borderRadius(14)
+            .padding({ left: 14, right: 14, top: 6, bottom: 6 })
+            .onClick(() => this.onQuiz(m.id))
+        }
         Text(this.gradeLabel)
           .fontSize(13)
           .fontWeight(FontWeight.Bold)
