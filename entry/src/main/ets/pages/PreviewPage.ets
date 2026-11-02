@@ -820,8 +820,12 @@ struct PreviewPage {
 
         // 底栏：左侧页码状态 + 右侧操作（换一批/存图 幽灵，导出 PDF 主操作）
         Toolbar({
-          leading: this.pageStatusLeading,
-          trailing: this.actionsTrailing
+          leading: (): void => {
+            this.pageStatusLeading();
+          },
+          trailing: (): void => {
+            this.actionsTrailing();
+          }
         })
       }
       .width('100%')
