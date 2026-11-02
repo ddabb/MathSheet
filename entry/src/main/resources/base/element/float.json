@@ -1,0 +1,68 @@
+{
+  "float": [
+    {
+      "name": "shadow_card_radius",
+      "value": "8vp"
+    },
+    {
+      "name": "shadow_card_offset_y",
+      "value": "2vp"
+    },
+    {
+      "name": "shadow_cta_radius",
+      "value": "12vp"
+    },
+    {
+      "name": "shadow_cta_offset_y",
+      "value": "4vp"
+    },
+    {
+      "name": "radius_sm",
+      "value": "8vp"
+    },
+    {
+      "name": "radius_md",
+      "value": "12vp"
+    },
+    {
+      "name": "radius_lg",
+      "value": "16vp"
+    },
+    {
+      "name": "radius_xl",
+      "value": "20vp"
+    },
+    {
+      "name": "radius_pill",
+      "value": "999vp"
+    },
+    {
+      "name": "space_xs",
+      "value": "4vp"
+    },
+    {
+      "name": "space_md",
+      "value": "8vp"
+    },
+    {
+      "name": "space_sm",
+      "value": "12vp"
+    },
+    {
+      "name": "space_lg",
+      "value": "16vp"
+    },
+    {
+      "name": "space_xl",
+      "value": "20vp"
+    },
+    {
+      "name": "space_xxl",
+      "value": "24vp"
+    },
+    {
+      "name": "btn_height",
+      "value": "48vp"
+    }
+  ]
+}

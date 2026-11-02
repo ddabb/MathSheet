@@ -30,7 +30,7 @@
     },
     {
       "name": "version_value",
-      "value": "v1.0.0"
+      "value": "v1.1.0"
     },
     {
       "name": "grade_label",
@@ -47,6 +47,18 @@
     {
       "name": "grade_g3",
       "value": "Grade 3"
+    },
+    {
+      "name": "grade_g4",
+      "value": "Grade 4"
+    },
+    {
+      "name": "grade_g5",
+      "value": "Grade 5"
+    },
+    {
+      "name": "grade_g6",
+      "value": "Grade 6"
     },
     {
       "name": "type_label",
@@ -123,6 +135,14 @@
     {
       "name": "sheet_title_g3",
       "value": "Grade 3 Oral Math Practice"
+    },
+    {
+      "name": "sheet_title_g4",
+      "value": "Grade 4 Math Practice"
+    },
+    {
+      "name": "sheet_title_g5",
+      "value": "Grade 5 Math Practice"
     },
     {
       "name": "daily_title",
@@ -361,6 +381,42 @@
       "value": "Finish Marking"
     },
     {
+      "name": "grade_undo_label",
+      "value": "Undo"
+    },
+    {
+      "name": "grade_quick_all_correct",
+      "value": "All Correct"
+    },
+    {
+      "name": "grade_all_confirm_title",
+      "value": "All correct?"
+    },
+    {
+      "name": "grade_all_confirm_msg",
+      "value": "All %d problems will be marked correct"
+    },
+    {
+      "name": "grade_all_confirm_ok",
+      "value": "Mark All Correct"
+    },
+    {
+      "name": "grade_pending_drill_title",
+      "value": "Grade before re-drill"
+    },
+    {
+      "name": "grade_pending_drill_msg",
+      "value": "Practice sheet '%s' is not graded yet. Grade it for a more accurate drill"
+    },
+    {
+      "name": "grade_pending_drill_go",
+      "value": "Grade now"
+    },
+    {
+      "name": "grade_pending_drill_skip",
+      "value": "Drill anyway"
+    },
+    {
       "name": "grade_duration_label",
       "value": "Time Spent"
     },
@@ -439,6 +495,18 @@
     {
       "name": "mistakes_drill_toast",
       "value": "Practice sheet saved to library"
+    },
+    {
+      "name": "drill_mode_only",
+      "value": "Mistakes only"
+    },
+    {
+      "name": "drill_mode_mixed",
+      "value": "Mistakes + new"
+    },
+    {
+      "name": "drill_ratio_label",
+      "value": "New-problem ratio"
     },
     {
       "name": "mistakes_clear_button",
@@ -525,6 +593,34 @@
       "value": "All questions graded together when finished"
     },
     {
+      "name": "quiz_mode_timed",
+      "value": "Timed Challenge"
+    },
+    {
+      "name": "quiz_mode_timed_desc",
+      "value": "Race the clock — unanswered items are marked wrong and auto-submitted at zero"
+    },
+    {
+      "name": "quiz_time_left",
+      "value": "%s left"
+    },
+    {
+      "name": "quiz_timed_up_toast",
+      "value": "Time is up, submitted automatically"
+    },
+    {
+      "name": "quiz_wrong_stay_label",
+      "value": "Wrong pause"
+    },
+    {
+      "name": "quiz_wrong_stay_manual",
+      "value": "Manual"
+    },
+    {
+      "name": "quiz_wrong_stay_sec",
+      "value": "%d s"
+    },
+    {
       "name": "quiz_start",
       "value": "Start"
     },
@@ -595,6 +691,62 @@
     {
       "name": "quiz_already_graded_toast",
       "value": "This sheet is already graded"
+    },
+    {
+      "name": "print_button",
+      "value": "Print"
+    },
+    {
+      "name": "print_fail",
+      "value": "Printing didn't finish — try Export PDF instead"
+    },
+    {
+      "name": "print_sets_hint",
+      "value": "Multiple sheets: switch the set tab to print each one (now set %s)"
+    },
+    {
+      "name": "backup_section",
+      "value": "Backup & Restore"
+    },
+    {
+      "name": "backup_export",
+      "value": "Export Backup"
+    },
+    {
+      "name": "backup_import",
+      "value": "Import & Restore"
+    },
+    {
+      "name": "backup_confirm_title",
+      "value": "Restore Backup?"
+    },
+    {
+      "name": "backup_confirm_msg",
+      "value": "Importing will replace all current members, sheets and mistakes"
+    },
+    {
+      "name": "backup_confirm_ok",
+      "value": "Restore"
+    },
+    {
+      "name": "backup_done_toast",
+      "value": "Restore complete"
+    },
+    {
+      "name": "backup_invalid_toast",
+      "value": "Backup file is invalid or corrupted"
+    },
+    {
+      "name": "backup_empty_toast",
+      "value": "Nothing to back up yet"
+    },
+    {
+      "name": "backup_export_fail_toast",
+      "value": "Export didn't finish"
+    },
+    {
+      "name": "backup_saved_toast",
+      "value": "Backup saved"
     }
   ]
 }

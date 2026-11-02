@@ -23,6 +23,16 @@ import { WIDE_CONTENT_MAX_VP } from '../components/UiKit';
 /** 用时速记档位（秒；0 = 不记录）。 */
 const DURATION_OPTIONS: number[] = [0, 120, 180, 240, 300, 480, 600, 900];
 
+/** 单题撤销步（1.0.1 M2）：记录一次点选/标记操作前的状态，供撤销回滚。 */
+class UndoStep {
+  index: number = 0;
+  /** 逐题模式：操作前 marks[index]。 */
+  prevMark: number = 0;
+  /** 速录模式：操作前 quickWrong[index]。 */
+  prevSelected: boolean = false;
+  fromQuick: boolean = false;
+}
+
 @Entry
 @Component
 struct GradePage {
@@ -34,6 +44,7 @@ struct GradePage {
   @State wrongTotal: number = 0;
   @State quickMode: boolean = false;
   @State quickWrong: boolean[] = [];
+  @State undoSteps: UndoStep[] = [];
   @State durationSec: number = 0;
   private sheetId: string = '';
   private backLabelStr: string = '';
@@ -113,6 +124,7 @@ struct GradePage {
     if (this.done || s === null || this.idx >= this.marks.length) {
       return;
     }
+    this.pushUndo(this.idx, this.marks[this.idx], false, false);
     this.marks[this.idx] = v;
     this.marks = this.marks.slice();
     s.marks = this.marks.slice();
@@ -126,11 +138,50 @@ struct GradePage {
     this.idx = next;
   }
 
+  /** 记录撤销步（1.0.1 M2 单题撤销）。 */
+  private pushUndo(index: number, prevMark: number, prevSelected: boolean, fromQuick: boolean): void {
+    const step: UndoStep = new UndoStep();
+    step.index = index;
+    step.prevMark = prevMark;
+    step.prevSelected = prevSelected;
+    step.fromQuick = fromQuick;
+    const steps: UndoStep[] = this.undoSteps.slice();
+    steps.push(step);
+    this.undoSteps = steps;
+  }
+
+  /** 撤销最近一次点选/标记（批改未完成时可用）。 */
+  private undoLast(): void {
+    const s: StoredSheet | null = this.sheet;
+    if (s === null || this.done || this.undoSteps.length === 0) {
+      return;
+    }
+    const steps: UndoStep[] = this.undoSteps.slice();
+    const step: UndoStep | undefined = steps.pop();
+    this.undoSteps = steps;
+    if (step === undefined) {
+      return;
+    }
+    if (step.fromQuick) {
+      const qw: boolean[] = this.quickWrong.slice();
+      qw[step.index] = step.prevSelected;
+      this.quickWrong = qw;
+      return;
+    }
+    this.marks[step.index] = step.prevMark;
+    this.marks = this.marks.slice();
+    s.marks = this.marks.slice();
+    this.recount();
+    SheetStore.updateSheet(this.storeScope, s);
+    this.idx = step.index;
+  }
+
   // ---------- 交互：快速批改（对照答案页速录错题） ----------
 
   private toggleQuick(): void {
     if (this.quickMode) {
       this.quickMode = false;
+      this.undoSteps = [];
       return;
     }
     const s: StoredSheet | null = this.sheet;
@@ -142,6 +193,7 @@ struct GradePage {
       qw.push(this.marks[i] === 2);
     }
     this.quickWrong = qw;
+    this.undoSteps = [];
     this.quickMode = true;
   }
 
@@ -149,12 +201,13 @@ struct GradePage {
     if (i < 0 || i >= this.quickWrong.length) {
       return;
     }
+    this.pushUndo(i, 0, this.quickWrong[i], true);
     const qw: boolean[] = this.quickWrong.slice();
     qw[i] = !qw[i];
     this.quickWrong = qw;
   }
 
-  /** 点选错题 → 未选自动记对 → 整卷落库并收尾。 */
+  /** 点选错题 → 未选自动记对（与在线判分结果合并：旧错题预选中，错题并集落库）→ 整卷收尾。 */
   private applyQuick(): void {
     const s: StoredSheet | null = this.sheet;
     if (s === null || this.done || this.quickWrong.length !== s.items.length) {
@@ -169,7 +222,51 @@ struct GradePage {
     this.recount();
     SheetStore.updateSheet(this.storeScope, s);
     this.quickMode = false;
+    this.undoSteps = [];
     this.finish(s);
+  }
+
+  /** 整卷全对（1.0.1 M2，确认后）：全部记对 → 落库收尾（错题本幂等移除本卷引用）。 */
+  private applyAllCorrect(): void {
+    const s: StoredSheet | null = this.sheet;
+    if (s === null || this.done) {
+      return;
+    }
+    const marks: number[] = [];
+    for (let i: number = 0; i < s.items.length; i++) {
+      marks.push(1);
+    }
+    this.marks = marks;
+    s.marks = marks.slice();
+    this.recount();
+    SheetStore.updateSheet(this.storeScope, s);
+    this.quickMode = false;
+    this.undoSteps = [];
+    this.finish(s);
+  }
+
+  /** 整卷全对确认弹窗（防误触一键清错题）。 */
+  private confirmAllCorrect(): void {
+    const s: StoredSheet | null = this.sheet;
+    const ctx: Context | undefined = this.getUIContext().getHostContext();
+    if (s === null || ctx === undefined || this.done) {
+      return;
+    }
+    const param: AlertDialogParamWithButtons = {
+      title: $r('app.string.grade_all_confirm_title'),
+      message: ctx.resourceManager.getStringSync($r('app.string.grade_all_confirm_msg').id, s.items.length),
+      autoCancel: false,
+      primaryButton: {
+        value: $r('app.string.dialog_cancel'),
+        action: () => {
+        }
+      },
+      secondaryButton: {
+        value: $r('app.string.grade_all_confirm_ok'),
+        action: () => this.applyAllCorrect()
+      }
+    };
+    this.getUIContext().showAlertDialog(param);
   }
 
   // ---------- 交互：小结（用时速记 / 错题重练） ----------
@@ -310,6 +407,11 @@ struct GradePage {
         .height(64)
         .borderRadius(32)
         .textAlign(TextAlign.Center)
+        .shadow({
+          radius: $r('app.float.shadow_card_radius'),
+          offsetY: $r('app.float.shadow_card_offset_y'),
+          color: $r('app.color.shadow_color')
+        })
       Text(label)
         .fontSize(12)
         .fontColor($r('app.color.secondary_text'))
@@ -439,9 +541,14 @@ struct GradePage {
                     : $r('app.color.chip_text'))
                   .backgroundColor(this.quickWrong[i] ? $r('app.color.danger_red')
                     : $r('app.color.chip_bg'))
-                  .borderRadius(10)
+                  .borderRadius($r('app.float.radius_md'))
                   .padding({ left: 12, right: 12, top: 7, bottom: 7 })
                   .margin({ right: 8, bottom: 8 })
+                  .shadow({
+                    radius: $r('app.float.shadow_card_radius'),
+                    offsetY: $r('app.float.shadow_card_offset_y'),
+                    color: $r('app.color.shadow_color')
+                  })
                   .onClick(() => this.toggleQuickWrong(i))
               }, (it: StoredItem, i: number) => `${i}-${it.key}-${this.quickWrong[i]}`)
             }
@@ -451,6 +558,32 @@ struct GradePage {
           .width('100%')
           .align(Alignment.Start)
           .edgeEffect(EdgeEffect.Spring)
+
+          // 底部操作（1.0.1 M2）：撤销 + 整卷全对 + 记对完成
+          Row({ space: 12 }) {
+            Button($r('app.string.grade_undo_label'))
+              .fontSize(14)
+              .fontWeight(FontWeight.Bold)
+              .fontColor($r('app.color.brand'))
+              .backgroundColor($r('app.color.brand_tint'))
+              .borderRadius(20)
+              .height(40)
+              .layoutWeight(1)
+              .enabled(this.undoSteps.length > 0)
+              .opacity(this.undoSteps.length > 0 ? 1 : 0.4)
+              .onClick(() => this.undoLast())
+            Button($r('app.string.grade_quick_all_correct'))
+              .fontSize(14)
+              .fontWeight(FontWeight.Bold)
+              .fontColor($r('app.color.brand'))
+              .backgroundColor($r('app.color.brand_tint'))
+              .borderRadius(20)
+              .height(40)
+              .layoutWeight(1)
+              .onClick(() => this.confirmAllCorrect())
+          }
+          .width('100%')
+          .margin({ bottom: 12 })
 
           Button($r('app.string.grade_quick_done'))
             .width('100%')
@@ -471,9 +604,18 @@ struct GradePage {
         // 逐题对照
         Column({ space: 10 }) {
           Blank()
-          Text(`${this.idx + 1} / ${this.sheet.items.length}`)
-            .fontSize(13)
-            .fontColor($r('app.color.hint_text'))
+          Row({ space: 14 }) {
+            Text(`${this.idx + 1} / ${this.sheet.items.length}`)
+              .fontSize(13)
+              .fontColor($r('app.color.hint_text'))
+            if (this.undoSteps.length > 0) {
+              Text($r('app.string.grade_undo_label'))
+                .fontSize(13)
+                .fontWeight(FontWeight.Bold)
+                .fontColor($r('app.color.brand'))
+                .onClick(() => this.undoLast())
+            }
+          }
           Text(this.sheet.items[this.idx].q)
             .fontSize(40)
             .fontWeight(FontWeight.Bold)

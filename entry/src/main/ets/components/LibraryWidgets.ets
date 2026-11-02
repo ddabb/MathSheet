@@ -7,7 +7,7 @@
 
 import { StoredMeta } from '../core/SheetCodec';
 import { MistakeEntry } from '../core/MistakeCodec';
-import { EmptyState } from './UiKit';
+import { EmptyState, PrimaryButton, Segmented, OptionChip } from './UiKit';
 
 @Component
 export struct LibraryPanel {
@@ -74,64 +74,92 @@ export struct LibraryPanel {
 
   @Builder
   Card(m: StoredMeta) {
-    Column({ space: 10 }) {
-      Row() {
-        Text(m.title)
-          .fontSize(15)
-          .fontWeight(FontWeight.Bold)
-          .fontColor($r('app.color.primary_text'))
-          .layoutWeight(1)
-          .maxLines(1)
-          .textOverflow({ overflow: TextOverflow.Ellipsis })
-        Text(this.deleteLabel)
-          .fontSize(12)
-          .fontColor($r('app.color.hint_text'))
-          .padding({ left: 10, top: 2, bottom: 2 })
-          .onClick(() => this.onDelete(m))
+    Row({ space: 12 }) {
+      // 缩略图占位（卷图标块）
+      Column() {
+        Text('📄')
+          .fontSize(22)
       }
-      .width('100%')
+      .width(44)
+      .height(44)
+      .borderRadius($r('app.float.radius_md'))
+      .backgroundColor($r('app.color.brand_tint'))
+      .justifyContent(FlexAlign.Center)
+      .alignItems(HorizontalAlign.Center)
 
-      Text(this.metaText(m))
-        .fontSize(12)
-        .fontColor($r('app.color.secondary_text'))
+      Column({ space: 8 }) {
+        Row() {
+          Text(m.title)
+            .fontSize(15)
+            .fontWeight(FontWeight.Bold)
+            .fontColor($r('app.color.primary_text'))
+            .layoutWeight(1)
+            .maxLines(1)
+            .textOverflow({ overflow: TextOverflow.Ellipsis })
+          Row({ space: 6 }) {
+            Text(m.gradedCount > 0 ? '已批改' : '待批改')
+              .fontSize(11)
+              .fontColor(m.gradedCount > 0 ? $r('app.color.success_green') : $r('app.color.accent'))
+              .backgroundColor(m.gradedCount > 0 ? $r('app.color.brand_tint') : $r('app.color.chip_bg'))
+              .borderRadius($r('app.float.radius_pill'))
+              .padding({ left: 8, right: 8, top: 2, bottom: 2 })
+            Text('🗑️')
+              .fontSize(14)
+              .fontColor($r('app.color.hint_text'))
+              .padding({ left: 6, top: 2, bottom: 2 })
+              .onClick(() => this.onDelete(m))
+          }
+        }
         .width('100%')
 
-      Row({ space: 8 }) {
-        Text(this.openLabel)
-          .fontSize(13)
-          .fontColor($r('app.color.chip_text'))
-          .backgroundColor($r('app.color.chip_bg'))
-          .borderRadius(14)
-          .padding({ left: 14, right: 14, top: 6, bottom: 6 })
-          .onClick(() => this.onOpen(m.id))
-        if (m.gradedCount === 0) {
-          Text(this.quizLabel)
+        Text(this.metaText(m))
+          .fontSize(12)
+          .fontColor($r('app.color.secondary_text'))
+          .width('100%')
+
+        Row({ space: 8 }) {
+          Text('📖 ' + this.openLabel)
+            .fontSize(13)
+            .fontColor($r('app.color.chip_text'))
+            .backgroundColor($r('app.color.chip_bg'))
+            .borderRadius($r('app.float.radius_pill'))
+            .padding({ left: 14, right: 14, top: 6, bottom: 6 })
+            .onClick(() => this.onOpen(m.id))
+          if (m.gradedCount === 0) {
+            Text('✏️ ' + this.quizLabel)
+              .fontSize(13)
+              .fontWeight(FontWeight.Bold)
+              .fontColor($r('app.color.brand'))
+              .backgroundColor($r('app.color.brand_tint'))
+              .borderRadius($r('app.float.radius_pill'))
+              .padding({ left: 14, right: 14, top: 6, bottom: 6 })
+              .onClick(() => this.onQuiz(m.id))
+          }
+          Text('✓ ' + this.gradeLabel)
             .fontSize(13)
             .fontWeight(FontWeight.Bold)
             .fontColor($r('app.color.brand'))
             .backgroundColor($r('app.color.brand_tint'))
-            .borderRadius(14)
+            .borderRadius($r('app.float.radius_pill'))
             .padding({ left: 14, right: 14, top: 6, bottom: 6 })
-            .onClick(() => this.onQuiz(m.id))
+            .onClick(() => this.onGrade(m.id))
         }
-        Text(this.gradeLabel)
-          .fontSize(13)
-          .fontWeight(FontWeight.Bold)
-          .fontColor($r('app.color.brand'))
-          .backgroundColor($r('app.color.brand_tint'))
-          .borderRadius(14)
-          .padding({ left: 14, right: 14, top: 6, bottom: 6 })
-          .onClick(() => this.onGrade(m.id))
+        .width('100%')
+        .justifyContent(FlexAlign.Start)
       }
-      .width('100%')
-      .justifyContent(FlexAlign.End)
+      .layoutWeight(1)
+      .alignItems(HorizontalAlign.Start)
     }
     .width('100%')
     .padding(14)
     .backgroundColor($r('app.color.card_background'))
-    .borderRadius(14)
-    .alignItems(HorizontalAlign.Start)
-    .onClick(() => this.onOpen(m.id))
+    .borderRadius($r('app.float.radius_lg'))
+    .shadow({
+      radius: $r('app.float.shadow_card_radius'),
+      offsetY: $r('app.float.shadow_card_offset_y'),
+      color: $r('app.color.shadow_color')
+    })
+    .alignItems(VerticalAlign.Center)
   }
 
   build() {
@@ -155,6 +183,7 @@ export struct LibraryPanel {
           EmptyState({
             title: this.emptyTitle,
             desc: this.emptyDesc,
+            icon: '📚',
             goLabel: this.goLabel,
             onGo: () => this.onGo()
           })
@@ -177,6 +206,10 @@ export struct LibraryPanel {
 @Component
 export struct MistakesPanel {
   @Prop mistakes: MistakeEntry[] = [];
+  /** 重练模式（1.0.1 M1）：0 = 仅错题，1 = 错题+同类新题。 */
+  @Prop drillMode: number = 1;
+  /** 混编比例（1.0.1 M1）：1|2|3（仅错题+同类模式生效）。 */
+  @Prop drillRatio: number = 2;
   private titleLabel: string = '';
   private clearButton: string = '';
   private emptyTitle: string = '';
@@ -184,11 +217,18 @@ export struct MistakesPanel {
   private goLabel: string = '';
   private drillTitle: string = '';
   private drillButton: string = '';
+  private modeLabels: string[] = [];
+  private ratioLabel: string = '';
+  private ratioLabels: string[] = [];
   private onClear: () => void = (): void => {
   };
   private onDrill: () => void = (): void => {
   };
   private onGo: () => void = (): void => {
+  };
+  private onPickMode: (i: number) => void = (_i: number): void => {
+  };
+  private onPickRatio: (i: number) => void = (_i: number): void => {
   };
 
   private countText(): string {
@@ -204,7 +244,19 @@ export struct MistakesPanel {
 
   @Builder
   Row2(e: MistakeEntry) {
-    Row() {
+    Row({ space: 10 }) {
+      // 错题图标块
+      Column() {
+        Text('❌')
+          .fontSize(16)
+      }
+      .width(32)
+      .height(32)
+      .borderRadius($r('app.float.radius_sm'))
+      .backgroundColor($r('app.color.answer_tint'))
+      .justifyContent(FlexAlign.Center)
+      .alignItems(HorizontalAlign.Center)
+
       Column({ space: 4 }) {
         Text(e.q)
           .fontSize(15)
@@ -221,16 +273,21 @@ export struct MistakesPanel {
       .alignItems(HorizontalAlign.Start)
       .layoutWeight(1)
 
-      Text(e.a)
+      Text('＝ ' + e.a)
         .fontSize(13)
         .fontColor($r('app.color.secondary_text'))
         .maxLines(1)
-        .constraintSize({ maxWidth: '42%' })
+        .constraintSize({ maxWidth: '40%' })
     }
     .width('100%')
     .padding(12)
     .backgroundColor($r('app.color.card_background'))
-    .borderRadius(14)
+    .borderRadius($r('app.float.radius_lg'))
+    .shadow({
+      radius: $r('app.float.shadow_card_radius'),
+      offsetY: $r('app.float.shadow_card_offset_y'),
+      color: $r('app.color.shadow_color')
+    })
   }
 
   build() {
@@ -256,11 +313,12 @@ export struct MistakesPanel {
           EmptyState({
             title: this.emptyTitle,
             desc: this.emptyDesc,
+            icon: '✏️',
             goLabel: this.goLabel,
             onGo: () => this.onGo()
           })
         } else {
-          // 重练卷行动卡
+          // 重练卷行动卡（1.0.1 M1：模式 + 比例可选）
           Column({ space: 10 }) {
             Row() {
               Text(this.drillTitle)
@@ -273,15 +331,31 @@ export struct MistakesPanel {
                 .fontColor($r('app.color.secondary_text'))
             }
             .width('100%')
-            Button(this.drillButton)
+            Segmented({
+              labels: this.modeLabels,
+              selected: this.drillMode,
+              onPick: (i: number) => this.onPickMode(i)
+            })
+            if (this.drillMode === 1) {
+              Row({ space: 8 }) {
+                Text(this.ratioLabel)
+                  .fontSize(12)
+                  .fontColor($r('app.color.secondary_text'))
+                ForEach(this.ratioLabels, (label: string, i: number) => {
+                  OptionChip({
+                    label: label,
+                    selected: this.drillRatio === i + 1,
+                    onTap: () => this.onPickRatio(i + 1)
+                  })
+                }, (label: string) => label)
+              }
               .width('100%')
-              .height(40)
-              .fontSize(15)
-              .fontWeight(FontWeight.Bold)
-              .fontColor($r('app.color.on_accent_text'))
-              .backgroundColor($r('app.color.brand'))
-              .borderRadius(20)
-              .onClick(() => this.onDrill())
+            }
+            PrimaryButton({
+              label: this.drillButton,
+              icon: '🔁',
+              onTap: () => this.onDrill()
+            })
           }
           .width('100%')
           .padding(14)

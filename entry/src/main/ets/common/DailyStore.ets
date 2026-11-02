@@ -157,4 +157,84 @@ export class DailyStore {
       // 迁移失败下次启动重试（KEY_MIGRATED 未置位）
     }
   }
+
+  // ---------- 备份（1.0.1 M6） ----------
+
+  /** 九键物化导出（无有效记录返回 ''）。 */
+  static async exportJson(context: Context, storeName: string): Promise<string> {
+    try {
+      const p: preferences.Preferences = await DailyStore.open(context, storeName);
+      const hasCfg: boolean = p.getSync(DailyStore.KEY_HAS_CFG, false) as boolean;
+      const lastDate: string = p.getSync(DailyStore.KEY_LAST_DATE, '') as string;
+      const streak: number = p.getSync(DailyStore.KEY_STREAK, 0) as number;
+      if (!hasCfg && lastDate === '' && streak <= 0) {
+        return '';
+      }
+      const o: Record<string, Object> = {
+        'has_cfg': hasCfg,
+        'last_date': lastDate,
+        'streak': streak,
+        'type_ids': p.getSync(DailyStore.KEY_TYPE_IDS, '') as string,
+        'count': p.getSync(DailyStore.KEY_COUNT, 50) as number,
+        'columns': p.getSync(DailyStore.KEY_COLUMNS, 3) as number,
+        'header_on': p.getSync(DailyStore.KEY_HEADER, true) as boolean,
+        'answer_on': p.getSync(DailyStore.KEY_ANSWER, true) as boolean,
+        'sets': p.getSync(DailyStore.KEY_SETS, 1) as number
+      };
+      return JSON.stringify(o);
+    } catch (e) {
+      return '';
+    }
+  }
+
+  /** 备份九键回写（空串/脏数据忽略；类型不符的键跳过）。 */
+  static async restoreJson(context: Context, storeName: string, json: string): Promise<void> {
+    if (json === '') {
+      return;
+    }
+    let root: Object;
+    try {
+      root = JSON.parse(json);
+    } catch (e) {
+      return;
+    }
+    const r: Record<string, Object> = root as Record<string, Object>;
+    try {
+      const p: preferences.Preferences = await DailyStore.open(context, storeName);
+      DailyStore.putTyped(p, DailyStore.KEY_HAS_CFG, r['has_cfg'], 'boolean');
+      DailyStore.putTyped(p, DailyStore.KEY_LAST_DATE, r['last_date'], 'string');
+      DailyStore.putTyped(p, DailyStore.KEY_STREAK, r['streak'], 'number');
+      DailyStore.putTyped(p, DailyStore.KEY_TYPE_IDS, r['type_ids'], 'string');
+      DailyStore.putTyped(p, DailyStore.KEY_COUNT, r['count'], 'number');
+      DailyStore.putTyped(p, DailyStore.KEY_COLUMNS, r['columns'], 'number');
+      DailyStore.putTyped(p, DailyStore.KEY_HEADER, r['header_on'], 'boolean');
+      DailyStore.putTyped(p, DailyStore.KEY_ANSWER, r['answer_on'], 'boolean');
+      DailyStore.putTyped(p, DailyStore.KEY_SETS, r['sets'], 'number');
+      await p.flush();
+    } catch (e) {
+      // 回写失败不阻断整体恢复（其余成员数据继续）
+    }
+  }
+
+  /** 按声明类型回写（类型不符跳过）。 */
+  private static putTyped(p: preferences.Preferences, key: string,
+                          v: Object | undefined, kind: string): void {
+    if (kind === 'boolean' && typeof v === 'boolean') {
+      p.putSync(key, v);
+    } else if (kind === 'number' && typeof v === 'number') {
+      p.putSync(key, v);
+    } else if (kind === 'string' && typeof v === 'string') {
+      p.putSync(key, v);
+    }
+  }
+
+  /** 清库（备份中该成员打卡为空时移除本地记录）。 */
+  static clear(context: Context, storeName: string): void {
+    try {
+      preferences.deletePreferences(context, storeName).catch(() => {
+      });
+    } catch (e) {
+      // 见上
+    }
+  }
 }

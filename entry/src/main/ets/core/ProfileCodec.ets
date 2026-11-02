@@ -93,9 +93,9 @@ export class ProfileCodec {
     return ProfileCodec.cutName(raw.trim());
   }
 
-  /** 年级钳制：非法值回 2（默认主场景）。 */
+  /** 年级钳制（v1.1 扩六年级）：1-6 合法，其余回 2（默认主场景）。 */
   static clampGrade(g: number): number {
-    return g === 1 || g === 3 ? g : 2;
+    return g >= 1 && g <= 6 && Number.isInteger(g) ? g : 2;
   }
 
   // ---------- 查找 ----------

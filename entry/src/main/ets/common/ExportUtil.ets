@@ -225,6 +225,26 @@ export class ExportUtil {
     }
   }
 
+  /** 系统文件选择器（免权限；用户取消返回 null）。 */
+  static async pickDocument(uiContext: UIContext,
+                            fileSuffixFilters: string[]): Promise<string | null> {
+    const ctx: Context | undefined = uiContext.getHostContext();
+    if (ctx === undefined) {
+      return null;
+    }
+    try {
+      const opts: picker.DocumentSelectOptions = new picker.DocumentSelectOptions();
+      opts.maxSelectNumber = 1;
+      opts.fileSuffixFilters = fileSuffixFilters;
+      const dp: picker.DocumentViewPicker = new picker.DocumentViewPicker(ctx);
+      const uris: Array<string> = await dp.select(opts);
+      return uris.length > 0 ? uris[0] : null;
+    } catch (e) {
+      console.error(`[ExportUtil] pickDocument failed: ${(e as Error).message}`);
+      return null;
+    }
+  }
+
   /** 系统分享面板（免权限）。 */
   static shareFile(uiContext: UIContext, path: string, fileSuffix: string): boolean {
     const ctx: Context | undefined = uiContext.getHostContext();

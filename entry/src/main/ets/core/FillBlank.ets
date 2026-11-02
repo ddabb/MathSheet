@@ -10,7 +10,7 @@ import { Problem, ProblemGen } from './ProblemGen';
 
 export type BlankPos = 'a' | 'b' | 'answer';
 
-/** 填空题（由完整题 + 挖位推导，键与值同源）。 */
+/** 填空题（由完整题 + 挖位推导，键与值同源；dp>0 时数值为缩放整数）。 */
 export class BlankProblem {
   a: number;
   b: number;
@@ -19,6 +19,8 @@ export class BlankProblem {
   blankValue: number;
   /** 完整式结果（M2 SheetModel 答案文本推导用，物化保持单一事实源）。 */
   answerValue: number;
+  /** 小数位数（1.0.1 M8）：1 = 一位小数（数值按 10 倍缩放整数存）。 */
+  dp: number;
   text: string;
 
   constructor(p: Problem, blankPos: BlankPos) {
@@ -28,9 +30,10 @@ export class BlankProblem {
     this.blankPos = blankPos;
     this.blankValue = blankPos === 'a' ? p.a : blankPos === 'b' ? p.b : p.answer;
     this.answerValue = p.answer;
-    const left: string = blankPos === 'a' ? '\u25a1' : String(p.a);
-    const right: string = blankPos === 'b' ? '\u25a1' : String(p.b);
-    const result: string = blankPos === 'answer' ? '\u25a1' : String(p.answer);
+    this.dp = p.dp;
+    const left: string = blankPos === 'a' ? '\u25a1' : ProblemGen.fmt(p.a, this.dp);
+    const right: string = blankPos === 'b' ? '\u25a1' : p.fmtB();
+    const result: string = blankPos === 'answer' ? '\u25a1' : ProblemGen.fmt(p.answer, this.dp);
     this.text = left + this.op + right + '=' + result;
   }
 

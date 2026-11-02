@@ -6,11 +6,11 @@
     },
     {
       "name": "page_background",
-      "value": "#1A1A1A"
+      "value": "#14161C"
     },
     {
       "name": "card_background",
-      "value": "#242424"
+      "value": "#1E2129"
     },
     {
       "name": "primary_text",
@@ -18,51 +18,55 @@
     },
     {
       "name": "secondary_text",
-      "value": "#E0E0E0"
+      "value": "#C2C7D4"
     },
     {
       "name": "hint_text",
-      "value": "#8C8C8C"
+      "value": "#8A90A0"
     },
     {
       "name": "border_color",
-      "value": "#333333"
+      "value": "#2E3139"
     },
     {
       "name": "brand",
-      "value": "#6FA3F0"
+      "value": "#5E86F2"
     },
     {
       "name": "brand_tint",
-      "value": "#336FA3F0"
+      "value": "#335E86F2"
     },
     {
       "name": "accent",
-      "value": "#FB923C"
+      "value": "#FFA94D"
     },
     {
       "name": "success_green",
-      "value": "#66BB6A"
+      "value": "#44C283"
     },
     {
       "name": "danger_red",
-      "value": "#F2615E"
+      "value": "#F26D6F"
     },
     {
       "name": "answer_tint",
-      "value": "#33F2615E"
+      "value": "#33F26D6F"
     },
     {
       "name": "on_accent_text",
-      "value": "#1A1A1A"
+      "value": "#14161C"
     },
     {
       "name": "chip_bg",
-      "value": "#333336"
+      "value": "#2A2D36"
     },
     {
       "name": "chip_text",
-      "value": "#E0E0E0"
+      "value": "#C2C7D4"
+    },
+    {
+      "name": "shadow_color",
+      "value": "#00000059"
     }
   ]
 }

@@ -47,8 +47,12 @@ function assertProblem(p: Problem, spec: ProblemSpec): void {
     if (spec.tableMul) {
       expect(p.a >= 2 && p.a <= 9).assertTrue();
       expect(p.b >= 2 && p.b <= 9).assertTrue();
+    } else if (spec.dp > 0) {
+      // 小数×整数（1.0.1 M8）：a 为缩放小数 ∈ [max(1,lo), hi]，b 为整数因子 ∈ [bMin,bMax]
+      expect(p.a >= Math.max(1, lo) && p.a <= hi).assertTrue();
+      expect(p.b >= Math.max(2, spec.bMin) && p.b <= spec.bMax).assertTrue();
     } else if (hi >= 10) {
-      expect(p.b >= 2 && p.b <= 9).assertTrue();
+      expect(p.b >= Math.max(2, spec.bMin) && p.b <= spec.bMax).assertTrue();
       expect(p.a >= Math.max(10, lo) && p.a <= hi).assertTrue();
     } else {
       expect(p.a >= Math.max(2, lo) && p.a <= Math.min(9, hi)).assertTrue();
@@ -58,7 +62,7 @@ function assertProblem(p: Problem, spec: ProblemSpec): void {
     expect(p.a % p.b).assertEqual(0);
     expect(p.a / p.b).assertEqual(p.answer);
     expect(p.a <= hi).assertTrue();
-    expect(p.b >= 2 && p.b <= Math.max(2, Math.min(9, spec.divisorMax))).assertTrue();
+    expect(p.b >= 2 && p.b <= Math.max(2, Math.min(99, spec.divisorMax))).assertTrue();
     expect(p.answer >= 1).assertTrue();
     expect(p.a >= p.b).assertTrue();
   }
@@ -462,10 +466,13 @@ export default function mathCoreTest() {
         for (const e of all) {
           expect(!ids.has(e.id)).assertTrue();
           ids.add(e.id);
-          expect(e.grade >= 1 && e.grade <= 3).assertTrue();
+          expect(e.grade >= 1 && e.grade <= 6).assertTrue();
           expect(e.labelZh.length > 0 && e.labelEn.length > 0).assertTrue();
           if (e.kind === 'mixed') {
             expect(e.mixed !== null).assertTrue();
+          } else if (e.kind === 'figure') {
+            // 数形结合（v1.1 §17.3）：figKind 分发键非空（生成覆盖见 figTest）
+            expect(e.figKind !== null).assertTrue();
           } else {
             expect(GradePresets.resolveSpec(e) !== null).assertTrue();
           }
@@ -477,10 +484,13 @@ export default function mathCoreTest() {
             }
           }
         }
-        expect(all.length >= 20).assertTrue();
+        expect(all.length >= 30).assertTrue();
         expect(GradePresets.forGrade(1).length >= 5).assertTrue();
         expect(GradePresets.forGrade(2).length >= 7).assertTrue();
         expect(GradePresets.forGrade(3).length >= 5).assertTrue();
+        expect(GradePresets.forGrade(4).length >= 8).assertTrue();
+        expect(GradePresets.forGrade(5).length >= 4).assertTrue();
+        expect(GradePresets.forGrade(6).length >= 4).assertTrue();
       })
 
       it('全预设可生成：每条目 20 题 + 性质/文本断言', 0, () => {

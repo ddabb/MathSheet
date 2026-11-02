@@ -35,10 +35,12 @@ export class MixedSpec {
   cFactorMax: number;
   /** 内层乘法因子上限（因子 ∈ [2, factorMax]）。 */
   factorMax: number;
+  /** 简便运算（1.0.1 M8）：op1=op2=mul 时内层取凑整因子对（如 25×4），外层 c ∈ [2, cFactorMax]。 */
+  friendly: boolean;
 
   constructor(op1: MixedOp, op2: MixedOp, bracket: boolean, min: number, max: number,
               innerMin: number, innerMax: number, cMax: number = 20,
-              cFactorMax: number = 9, factorMax: number = 9) {
+              cFactorMax: number = 9, factorMax: number = 9, friendly: boolean = false) {
     this.op1 = op1;
     this.op2 = op2;
     this.bracket = bracket;
@@ -49,6 +51,7 @@ export class MixedSpec {
     this.cMax = cMax;
     this.cFactorMax = cFactorMax;
     this.factorMax = factorMax;
+    this.friendly = friendly;
   }
 }
 
@@ -90,6 +93,11 @@ export class MixedProblem {
 export class MixedGen {
   /** 弱约束（最终结果区间）拒绝采样上限。 */
   static readonly REJECT_LIMIT: number = 64;
+  /** 凑整因子对（1.0.1 M8 简便运算·结合律）：a×b ∈ {100, 200, 500, 1000}，两序均入表。 */
+  static readonly FRIENDLY_PAIRS: number[][] = [
+    [25, 4], [4, 25], [50, 2], [2, 50], [25, 8], [125, 8], [8, 125], [250, 4],
+    [125, 4], [5, 20], [20, 5]
+  ];
 
   static generate(spec: MixedSpec, rng: Rng): MixedProblem {
     const lo: number = Math.min(spec.min, spec.max);
@@ -110,6 +118,11 @@ export class MixedGen {
       } else if (spec.op1 === 'sub') {
         a = rng.nextInt(iLo, iHi + 1);
         b = rng.nextInt(0, a + 1);
+      } else if (spec.friendly) {
+        // 简便运算：内层取凑整因子对（25×4=100 / 125×8=1000 …），因子不超 factorMax
+        const pair: number[] = MixedGen.friendlyPair(spec, rng);
+        a = pair[0];
+        b = pair[1];
       } else {
         a = rng.nextInt(2, spec.factorMax + 1);
         b = rng.nextInt(2, spec.factorMax + 1);
@@ -129,5 +142,17 @@ export class MixedGen {
       }
     }
     return new MixedProblem(a, b, c, spec.op1, spec.op2, spec.bracket, true);
+  }
+
+  /** 凑整因子对（因子均 ≤ factorMax；空表兜底全量——factorMax < 2 的退化规格）。 */
+  private static friendlyPair(spec: MixedSpec, rng: Rng): number[] {
+    const ok: number[][] = [];
+    for (const p of MixedGen.FRIENDLY_PAIRS) {
+      if (p[0] <= spec.factorMax && p[1] <= spec.factorMax) {
+        ok.push(p);
+      }
+    }
+    const src: number[][] = ok.length > 0 ? ok : MixedGen.FRIENDLY_PAIRS;
+    return src[rng.nextInt(0, src.length)];
   }
 }

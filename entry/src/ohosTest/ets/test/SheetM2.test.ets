@@ -232,7 +232,14 @@ export default function sheetM2Test() {
           allSame = false;
         }
         akeys.add(all.items[i].key);
-        expect(all.items[i].questionText.indexOf('=') >= 0).assertTrue();
+        const it: SheetItem = all.items[i];
+        if (it.key.indexOf('fnl') === 0) {
+          // 数轴填空（v1.1 数形结合）：数轴形态无 "="（0—s—□—3s），校验线段与作答位
+          expect(it.questionText.indexOf('\u2014') >= 0).assertTrue();
+          expect(it.questionText.indexOf('\u25a1') >= 0).assertTrue();
+        } else {
+          expect(it.questionText.indexOf('=') >= 0).assertTrue();
+        }
       }
       expect(allSame).assertTrue();
       expect(akeys.size >= 54).assertTrue();

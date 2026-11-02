@@ -21,3 +21,5 @@
 __pycache__/
 /build-profile.json5
 /.shots/
+/build_logs
+

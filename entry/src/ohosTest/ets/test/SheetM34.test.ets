@@ -392,7 +392,8 @@ export default function sheetM34Test() {
 
     // ---- QuizJudge 全预设覆盖（生成器全部题型可推导出非空数字答案） ----
     it('QuizJudge_coversAllPresets', 0, () => {
-      const digitRe: RegExp = /^\d+$/;
+      // 数字文本（M8 起含一位小数答案，如 '6.3'；竖式仍为纯整数）
+      const digitRe: RegExp = /^\d+(\.\d+)?$/;
       for (const e of GradePresets.ENTRIES) {
         const traced = SheetGen.buildMultiSheetTraced([e], 12345, 24);
         expect(traced.items.length > 0).assertTrue();

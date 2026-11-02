@@ -2,11 +2,11 @@
   "color": [
     {
       "name": "start_window_background",
-      "value": "#E8F1FE"
+      "value": "#E9F0FE"
     },
     {
       "name": "page_background",
-      "value": "#F5F5F5"
+      "value": "#F6F7FB"
     },
     {
       "name": "card_background",
@@ -14,43 +14,43 @@
     },
     {
       "name": "primary_text",
-      "value": "#333333"
+      "value": "#1A1D29"
     },
     {
       "name": "secondary_text",
-      "value": "#666666"
+      "value": "#5B6172"
     },
     {
       "name": "hint_text",
-      "value": "#999999"
+      "value": "#9AA0AE"
     },
     {
       "name": "border_color",
-      "value": "#EEEEEE"
+      "value": "#ECEEF3"
     },
     {
       "name": "brand",
-      "value": "#2E6FD6"
+      "value": "#3A63E0"
     },
     {
       "name": "brand_tint",
-      "value": "#1A2E6FD6"
+      "value": "#1A3A63E0"
     },
     {
       "name": "accent",
-      "value": "#F59E0B"
+      "value": "#FF9F2E"
     },
     {
       "name": "success_green",
-      "value": "#15803D"
+      "value": "#1FA971"
     },
     {
       "name": "danger_red",
-      "value": "#DC2626"
+      "value": "#E5484D"
     },
     {
       "name": "answer_tint",
-      "value": "#1ADC2626"
+      "value": "#1AE5484D"
     },
     {
       "name": "on_accent_text",
@@ -58,11 +58,15 @@
     },
     {
       "name": "chip_bg",
-      "value": "#F2F2F2"
+      "value": "#EFF1F6"
     },
     {
       "name": "chip_text",
-      "value": "#333333"
+      "value": "#5B6172"
+    },
+    {
+      "name": "shadow_color",
+      "value": "#1A1A1D29"
     }
   ]
 }

@@ -11,6 +11,7 @@ import { Dedup, DedupResult, Collected } from './Dedup';
 import { MixedGen, MixedSpec, MixedProblem } from './MixedGen';
 import { FillBlank, BlankProblem } from './FillBlank';
 import { GradePresets, PresetEntry } from './GradePresets';
+import { FigureGen } from './FigureGen';
 import { SheetItem } from './SheetModel';
 
 /** 带题型溯源的题目（item + presetId；卷库物化存储 presetId 供错题重练）。 */
@@ -95,7 +96,7 @@ export class SheetGen {
     return entry === null ? null : SheetGen.genItemForEntry(entry, rng);
   }
 
-  /** 单表目 → SheetItem（single/mixed/fill 三态分发；非法表项退化为 10 以内加法兜底）。 */
+  /** 单表目 → SheetItem（single/mixed/fill/vertical/figure 五态分发；非法表项退化为 10 以内加法兜底）。 */
   private static genItemForEntry(entry: PresetEntry, rng: Rng): SheetItem {
     if (entry.kind === 'mixed') {
       const ms: MixedSpec | null = entry.mixed;
@@ -107,6 +108,15 @@ export class SheetGen {
       if (spec !== null) {
         return SheetItem.fromBlank(FillBlank.fromProblem(ProblemGen.generate(spec, rng), rng, true));
       }
+    } else if (entry.kind === 'vertical') {
+      // 竖式（1.0.1 M8）：与同参横式题生成路径同种子复现，仅排版形态不同（键前缀 'v' 区分）
+      const spec: ProblemSpec | null = entry.spec;
+      if (spec !== null) {
+        return SheetItem.fromVertical(ProblemGen.generate(spec, rng));
+      }
+    } else if (entry.kind === 'figure') {
+      // 数形结合（v1.1 §17.3）：纯文本图形协议，判分/存储/版面零改动（键前缀 'f' 区分）
+      return FigureGen.generate(entry.figKind, rng);
     } else {
       const spec: ProblemSpec | null = entry.spec;
       if (spec !== null) {

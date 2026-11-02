@@ -12,6 +12,8 @@ import { display } from '@kit.ArkUI';
 import { i18n } from '@kit.LocalizationKit';
 import { image } from '@kit.ImageKit';
 import { Context } from '@kit.AbilityKit';
+import { print, BusinessError } from '@kit.BasicServicesKit';
+import { fileUri } from '@kit.CoreFileKit';
 import { GradePresets, PresetEntry } from '../core/GradePresets';
 import { SheetGen } from '../core/SheetGen';
 import { SheetItem } from '../core/SheetModel';
@@ -23,7 +25,7 @@ import { SheetStore } from '../core/SheetStore';
 import { MemberScope } from '../core/ProfileCodec';
 import { ProfileStore } from '../core/ProfileStore';
 import { ExportUtil, ExportOutcome } from '../common/ExportUtil';
-import { WIDE_CONTENT_MAX_VP } from '../components/UiKit';
+import { WIDE_CONTENT_MAX_VP, Toolbar, GhostButton, PrimaryButton } from '../components/UiKit';
 
 /** 单套卷数据（题目 + 版面 + 该套规格；A/B/C/D 共享参数不同种子）。 */
 class SheetSetData {
@@ -156,6 +158,11 @@ struct PreviewPage {
     return this.getUIContext().getHostContext();
   }
 
+  private strOf(res: Resource): string {
+    const rm = this.ctx()?.resourceManager;
+    return rm === undefined ? '' : rm.getStringSync(res.id);
+  }
+
   // ---------- 多套卷几何 ----------
 
   private setLetter(s: number): string {
@@ -198,7 +205,11 @@ struct PreviewPage {
     const ctx: Context | undefined = this.ctx();
     const rm = ctx !== undefined ? ctx.resourceManager : undefined;
     const titleRes: Resource = grade === 1 ? $r('app.string.sheet_title_g1')
-      : grade === 3 ? $r('app.string.sheet_title_g3') : $r('app.string.sheet_title_g2');
+      : grade === 2 ? $r('app.string.sheet_title_g2')
+      : grade === 3 ? $r('app.string.sheet_title_g3')
+      : grade === 4 ? $r('app.string.sheet_title_g4')
+      : grade === 5 ? $r('app.string.sheet_title_g5')
+      : $r('app.string.sheet_title_g2');
     this.sheetTitle = rm !== undefined ? rm.getStringSync(titleRes.id) : '';
     this.answerTitle = rm !== undefined ? rm.getStringSync($r('app.string.answer_sheet_title').id) : '';
     this.fieldsText = rm !== undefined ? rm.getStringSync($r('app.string.header_fields').id) : '';
@@ -226,7 +237,7 @@ struct PreviewPage {
         this.sheetTitle + suffix);
       sd.answerSpec = new LayoutSpec(this.params.columns, fontSize, this.params.headerOn,
         this.answerTitle + suffix);
-      sd.layout = SheetLayout.layout(sd.items.length, sd.spec);
+      sd.layout = SheetLayout.layout(sd.items.length, sd.spec, SheetLayout.lineCountsOf(sd.items));
       sd.qPages = sd.layout.pages.length;
       data.push(sd);
       const marks: number[] = [];
@@ -293,7 +304,7 @@ struct PreviewPage {
     sd.items = items;
     sd.spec = new LayoutSpec(s.columns, fontSize, s.headerOn, s.title);
     sd.answerSpec = new LayoutSpec(s.columns, fontSize, s.headerOn, this.answerTitle);
-    sd.layout = SheetLayout.layout(items.length, sd.spec);
+    sd.layout = SheetLayout.layout(items.length, sd.spec, SheetLayout.lineCountsOf(items));
     sd.qPages = sd.layout.pages.length;
     this.setsData = [sd];
     this.setCount = 1;
@@ -509,6 +520,57 @@ struct PreviewPage {
     ExportUtil.shareFile(this.getUIContext(), pdfPath, '.pdf');
   }
 
+  // ---------- 打印直连（1.0.1 M4） ----------
+
+  /**
+   * 当前预览卷打印直连：沙箱合成 PDF → fileUri 拉起系统打印预览，
+   * 跳过「存 PDF」中间步；失败降级提示走「导出 PDF」（并存保留）。
+   * 多套卷（M5）：当前套送印，提示切换套号逐套打印。
+   */
+  private printSheet(): void {
+    if (this.exporting !== 0) {
+      return;
+    }
+    const ctx: Context | undefined = this.ctx();
+    const reqs: PageRenderRequest[] = this.exportRequests();
+    if (ctx === undefined || reqs.length === 0) {
+      return;
+    }
+    this.exporting = 1;
+    if (this.setCount > 1) {
+      this.getUIContext().getPromptAction().showToast({
+        message: this.strOf($r('app.string.print_sets_hint'))
+          .replace('%s', this.setLetter(this.currentSet)),
+        duration: 3000
+      });
+    }
+    ExportUtil.composePdf(ctx, reqs, this.exportBaseName()).then((pdfPath: string | null) => {
+      if (pdfPath === null) {
+        this.exporting = 0;
+        this.getUIContext().getPromptAction()
+          .showToast({ message: $r('app.string.export_pdf_fail'), duration: 2500 });
+        return;
+      }
+      print.print([fileUri.getUriFromPath(pdfPath)], ctx)
+        .then((task: print.PrintTask) => {
+          this.exporting = 0;
+          task.on('fail', (): void => {
+            this.getUIContext().getPromptAction()
+              .showToast({ message: $r('app.string.print_fail'), duration: 2500 });
+          });
+        })
+        .catch((_err: BusinessError) => {
+          this.exporting = 0;
+          this.getUIContext().getPromptAction()
+            .showToast({ message: $r('app.string.print_fail'), duration: 2500 });
+        });
+    }).catch(() => {
+      this.exporting = 0;
+      this.getUIContext().getPromptAction()
+        .showToast({ message: $r('app.string.export_pdf_fail'), duration: 2500 });
+    });
+  }
+
   private saveImage(): void {
     if (this.exporting !== 0) {
       return;
@@ -622,6 +684,37 @@ struct PreviewPage {
     return out;
   }
 
+  @Builder
+  pageStatusLeading() {
+    Text(`${this.current + 1} / ${this.totalPages}`)
+      .fontSize(13)
+      .fontColor($r('app.color.secondary_text'))
+  }
+
+  @Builder
+  actionsTrailing() {
+    Row({ space: 10 }) {
+      if (!this.storedMode) {
+        GhostButton({
+          label: this.strOf($r('app.string.change_batch')),
+          icon: '🔄',
+          onTap: () => this.changeBatch()
+        })
+      }
+      GhostButton({
+        label: this.strOf($r('app.string.save_image_button')),
+        icon: '🖼️',
+        onTap: () => this.saveImage()
+      })
+      PrimaryButton({
+        label: this.strOf($r('app.string.export_pdf_button')),
+        icon: '📄',
+        onTap: () => this.exportPdf()
+      })
+    }
+    .alignItems(VerticalAlign.Center)
+  }
+
   build() {
     Stack() {
       Column() {
@@ -705,74 +798,57 @@ struct PreviewPage {
           this.ensureAround(this.currentSet, idx);
         })
 
-        // 在线作答入口（未批改卷才展示）
-        if (this.quizReady) {
-          Button($r('app.string.quiz_entry_button'))
-            .width('100%')
-            .height(44)
-            .fontSize(16)
-            .fontWeight(FontWeight.Bold)
-            .fontColor($r('app.color.on_accent_text'))
-            .backgroundColor($r('app.color.brand'))
-            .borderRadius(22)
-            .margin({ left: 16, right: 16, top: 4 })
-            .onClick(() => this.startQuiz())
-        }
-
-        // 底栏：页码 + 换一批（新鲜模式）+ 保存图片 + 导出 PDF
-        Row({ space: 10 }) {
-          Text(`${this.current + 1} / ${this.totalPages}`)
-            .fontSize(13)
-            .fontColor($r('app.color.secondary_text'))
-          Blank()
-          if (!this.storedMode) {
-            Text($r('app.string.change_batch'))
-              .fontSize(14)
-              .fontColor($r('app.color.brand'))
-              .backgroundColor($r('app.color.brand_tint'))
-              .borderRadius(17)
-              .padding({ left: 15, right: 15, top: 8, bottom: 8 })
-              .onClick(() => this.changeBatch())
+        // 底部固定区（1.0.1 M4）：在线作答（未批改卷展示）+ 打印直连主操作
+        Row({ space: 12 }) {
+          if (this.quizReady) {
+            PrimaryButton({
+              label: this.strOf($r('app.string.quiz_entry_button')),
+              icon: '✍️',
+              onTap: () => this.startQuiz()
+            })
+            .layoutWeight(1)
           }
-          Text($r('app.string.save_image_button'))
-            .fontSize(14)
-            .fontColor($r('app.color.chip_text'))
-            .backgroundColor($r('app.color.chip_bg'))
-            .borderRadius(17)
-            .padding({ left: 15, right: 15, top: 8, bottom: 8 })
-            .onClick(() => this.saveImage())
-          Text($r('app.string.export_pdf_button'))
-            .fontSize(14)
-            .fontWeight(FontWeight.Bold)
-            .fontColor($r('app.color.on_accent_text'))
-            .backgroundColor($r('app.color.brand'))
-            .borderRadius(17)
-            .padding({ left: 15, right: 15, top: 8, bottom: 8 })
-            .onClick(() => this.exportPdf())
+          PrimaryButton({
+            label: this.strOf($r('app.string.print_button')),
+            icon: '🖨️',
+            onTap: () => this.printSheet()
+          })
+          .layoutWeight(1)
         }
         .width('100%')
-        .padding({ left: 16, right: 16, top: 6, bottom: 10 })
+        .padding({ left: 16, right: 16, top: 4 })
+
+        // 底栏：左侧页码状态 + 右侧操作（换一批/存图 幽灵，导出 PDF 主操作）
+        Toolbar({
+          leading: this.pageStatusLeading,
+          trailing: this.actionsTrailing
+        })
       }
       .width('100%')
       .height('100%')
       .constraintSize({ maxWidth: WIDE_CONTENT_MAX_VP })
 
-      // 导出遮罩
+      // 导出遮罩（居中圆角卡片，配色与 Token 一致）
       if (this.exporting !== 0) {
-        Column({ space: 12 }) {
-          LoadingProgress()
-            .width(42)
-            .height(42)
-            .color(Color.White)
-          Text(this.exporting === 1 ? $r('app.string.export_pdf_composing')
-            : $r('app.string.save_image_composing'))
-            .fontSize(14)
-            .fontColor(Color.White)
+        Column() {
+          Column({ space: 12 }) {
+            LoadingProgress()
+              .width(42)
+              .height(42)
+              .color(Color.White)
+            Text(this.exporting === 1 ? $r('app.string.export_pdf_composing')
+              : $r('app.string.save_image_composing'))
+              .fontSize(14)
+              .fontColor(Color.White)
+          }
+          .padding(24)
+          .backgroundColor('#CC1A1D29')
+          .borderRadius($r('app.float.radius_xl'))
         }
         .width('100%')
         .height('100%')
         .justifyContent(FlexAlign.Center)
-        .backgroundColor('#99000000')
+        .backgroundColor('#66000000')
       }
     }
     .width('100%')

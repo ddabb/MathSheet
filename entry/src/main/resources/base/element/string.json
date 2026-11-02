@@ -30,7 +30,7 @@
     },
     {
       "name": "version_value",
-      "value": "v1.0.0"
+      "value": "v1.1.0"
     },
     {
       "name": "grade_label",
@@ -47,6 +47,18 @@
     {
       "name": "grade_g3",
       "value": "三年级"
+    },
+    {
+      "name": "grade_g4",
+      "value": "四年级"
+    },
+    {
+      "name": "grade_g5",
+      "value": "五年级"
+    },
+    {
+      "name": "grade_g6",
+      "value": "六年级"
     },
     {
       "name": "type_label",
@@ -123,6 +135,14 @@
     {
       "name": "sheet_title_g3",
       "value": "三年级口算练习"
+    },
+    {
+      "name": "sheet_title_g4",
+      "value": "四年级数学练习"
+    },
+    {
+      "name": "sheet_title_g5",
+      "value": "五年级数学练习"
     },
     {
       "name": "daily_title",
@@ -361,6 +381,42 @@
       "value": "完成批改"
     },
     {
+      "name": "grade_undo_label",
+      "value": "撤销"
+    },
+    {
+      "name": "grade_quick_all_correct",
+      "value": "整卷全对"
+    },
+    {
+      "name": "grade_all_confirm_title",
+      "value": "整卷全对？"
+    },
+    {
+      "name": "grade_all_confirm_msg",
+      "value": "本卷 %d 题将全部记为正确"
+    },
+    {
+      "name": "grade_all_confirm_ok",
+      "value": "确认全对"
+    },
+    {
+      "name": "grade_pending_drill_title",
+      "value": "先批改再重练"
+    },
+    {
+      "name": "grade_pending_drill_msg",
+      "value": "重练卷「%s」还未批改，批改后重练更准确"
+    },
+    {
+      "name": "grade_pending_drill_go",
+      "value": "去批改"
+    },
+    {
+      "name": "grade_pending_drill_skip",
+      "value": "仍要重练"
+    },
+    {
       "name": "grade_duration_label",
       "value": "批改用时"
     },
@@ -439,6 +495,18 @@
     {
       "name": "mistakes_drill_toast",
       "value": "重练卷已存入卷库"
+    },
+    {
+      "name": "drill_mode_only",
+      "value": "仅错题"
+    },
+    {
+      "name": "drill_mode_mixed",
+      "value": "错题+同类新题"
+    },
+    {
+      "name": "drill_ratio_label",
+      "value": "同类新题比例"
     },
     {
       "name": "mistakes_clear_button",
@@ -525,6 +593,34 @@
       "value": "全部作答完成后统一判分"
     },
     {
+      "name": "quiz_mode_timed",
+      "value": "限时挑战"
+    },
+    {
+      "name": "quiz_mode_timed_desc",
+      "value": "限时作答，时间到未答的题记错并自动交卷"
+    },
+    {
+      "name": "quiz_time_left",
+      "value": "剩余 %s"
+    },
+    {
+      "name": "quiz_timed_up_toast",
+      "value": "时间到，已自动交卷"
+    },
+    {
+      "name": "quiz_wrong_stay_label",
+      "value": "错题停留"
+    },
+    {
+      "name": "quiz_wrong_stay_manual",
+      "value": "手动"
+    },
+    {
+      "name": "quiz_wrong_stay_sec",
+      "value": "%d 秒"
+    },
+    {
       "name": "quiz_start",
       "value": "开始作答"
     },
@@ -595,6 +691,62 @@
     {
       "name": "quiz_already_graded_toast",
       "value": "该卷已批改，不能在线作答"
+    },
+    {
+      "name": "print_button",
+      "value": "打印"
+    },
+    {
+      "name": "print_fail",
+      "value": "打印未完成，可改用「导出 PDF」"
+    },
+    {
+      "name": "print_sets_hint",
+      "value": "多套卷请切换套号逐套打印（当前 %s 卷）"
+    },
+    {
+      "name": "backup_section",
+      "value": "备份与恢复"
+    },
+    {
+      "name": "backup_export",
+      "value": "导出备份"
+    },
+    {
+      "name": "backup_import",
+      "value": "导入恢复"
+    },
+    {
+      "name": "backup_confirm_title",
+      "value": "恢复备份？"
+    },
+    {
+      "name": "backup_confirm_msg",
+      "value": "导入将覆盖当前所有成员、卷库与错题数据"
+    },
+    {
+      "name": "backup_confirm_ok",
+      "value": "覆盖恢复"
+    },
+    {
+      "name": "backup_done_toast",
+      "value": "恢复完成"
+    },
+    {
+      "name": "backup_invalid_toast",
+      "value": "备份文件无效或已损坏"
+    },
+    {
+      "name": "backup_empty_toast",
+      "value": "暂无可备份的数据"
+    },
+    {
+      "name": "backup_export_fail_toast",
+      "value": "导出未完成"
+    },
+    {
+      "name": "backup_saved_toast",
+      "value": "备份已保存"
     }
   ]
 }

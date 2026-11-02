@@ -27,14 +27,15 @@ import { DrillFlow } from '../common/DrillFlow';
 import { Profile, ProfileCodec, ProfileIndex } from '../core/ProfileCodec';
 import { ProfileStore } from '../core/ProfileStore';
 import { HeroCard } from '../components/HeroCard';
-import { MemberChip, MemberRowModel, MemberDialogTexts, MemberBar, MemberManage, MemberEditDialog } from '../components/MemberWidgets';
+import { MemberChip, MemberRowModel, MemberDialogTexts, MemberBar, MemberEditDialog } from '../components/MemberWidgets';
 import { LibraryPanel, MistakesPanel } from '../components/LibraryWidgets';
-import { SectionLabel, OptionChip, Segmented, ToggleRow, TabBarItem, InfoRow, WIDE_CONTENT_MAX_VP } from '../components/UiKit';
+import { SettingsPanel } from '../components/SettingsWidgets';
+import { SectionLabel, OptionChip, Segmented, ToggleRow, TabBarItem, BrandHeader, SectionCard, PrimaryButton, WIDE_CONTENT_MAX_VP } from '../components/UiKit';
 
 const COUNT_OPTIONS: number[] = [20, 50, 100, 200];
 const COLUMN_OPTIONS: number[] = [2, 3, 4];
 const SET_OPTIONS: number[] = [1, 2, 4];
-const GRADES: number[] = [1, 2, 3];
+const GRADES: number[] = [1, 2, 3, 4, 5, 6];
 const DIALOG_MAX_WIDTH_VP: number = 420;
 
 @Entry
@@ -53,6 +54,10 @@ struct Index {
   @State heroDate: string = '';
   @State libraryMetas: StoredMeta[] = [];
   @State mistakes: MistakeEntry[] = [];
+  /** 错题重练模式（1.0.1 M1）：0 = 仅错题，1 = 错题+同类新题。 */
+  @State drillMode: number = 1;
+  /** 错题混编比例（1.0.1 M1）：1|2|3。 */
+  @State drillRatio: number = 2;
   @State members: Profile[] = [];
   @State currentMemberId: string = '';
   private langZh: boolean = true;
@@ -160,7 +165,8 @@ struct Index {
       ? $r('app.string.member_add') : $r('app.string.member_rename'));
     t.nameHint = this.strOf($r('app.string.member_name_hint'));
     t.gradeLabel = this.strOf($r('app.string.grade_label'));
-    t.grades = [this.gradeLabel(1), this.gradeLabel(2), this.gradeLabel(3)];
+    t.grades = [this.gradeLabel(1), this.gradeLabel(2), this.gradeLabel(3),
+      this.gradeLabel(4), this.gradeLabel(5), this.gradeLabel(6)];
     t.cancel = this.strOf($r('app.string.dialog_cancel'));
     t.confirm = this.strOf($r('app.string.member_confirm'));
     t.nameEmptyToast = this.strOf($r('app.string.member_name_empty_toast'));
@@ -286,6 +292,11 @@ struct Index {
     return out;
   }
 
+  // ---------- 备份与恢复（1.0.1 M6） ----------
+
+  // 备份导出/导入流程与设置页签 UI 已抽取至 components/SettingsWidgets.ets
+  //（SettingsPanel：恢复成功经 onRestored 回调触发本页 refreshFromIndex）。
+
   // ---------- 数据加载 ----------
 
   private dailyStoreName(): string {
@@ -366,7 +377,12 @@ struct Index {
 
   private gradeLabel(g: number): string {
     const res: Resource = g === 1 ? $r('app.string.grade_g1')
-      : g === 3 ? $r('app.string.grade_g3') : $r('app.string.grade_g2');
+      : g === 2 ? $r('app.string.grade_g2')
+      : g === 3 ? $r('app.string.grade_g3')
+      : g === 4 ? $r('app.string.grade_g4')
+      : g === 5 ? $r('app.string.grade_g5')
+      : g === 6 ? $r('app.string.grade_g6')
+      : $r('app.string.grade_g2');
     return this.strOf(res);
   }
 
@@ -529,8 +545,44 @@ struct Index {
     this.getUIContext().showAlertDialog(param);
   }
 
-  /** 一键重练卷：错题 1:2 混编 → 物化入库 → 跳预览（卷库模式）。 */
+  /** 一键重练卷（1.0.1 M1/M2）：未批改重练卷先提醒批改，再按模式/比例混编 → 入库 → 跳预览。 */
   private buildDrill(): void {
+    if (this.mistakes.length === 0) {
+      return;
+    }
+    const pending: StoredMeta | null = this.pendingDrillMeta();
+    if (pending !== null) {
+      const param: AlertDialogParamWithButtons = {
+        title: $r('app.string.grade_pending_drill_title'),
+        message: this.strOf($r('app.string.grade_pending_drill_msg')).replace('%s', pending.title),
+        autoCancel: false,
+        primaryButton: {
+          value: $r('app.string.grade_pending_drill_skip'),
+          action: () => this.doBuildDrill()
+        },
+        secondaryButton: {
+          value: $r('app.string.grade_pending_drill_go'),
+          action: () => this.gradeLibrarySheet(pending.id)
+        }
+      };
+      this.getUIContext().showAlertDialog(param);
+      return;
+    }
+    this.doBuildDrill();
+  }
+
+  /** 最新一条未批改的重练卷（卷库新在前；无则 null）。 */
+  private pendingDrillMeta(): StoredMeta | null {
+    const base: string = this.strOf($r('app.string.mistakes_drill_title'));
+    for (const m of this.libraryMetas) {
+      if (m.gradedCount === 0 && m.title.indexOf(base) === 0) {
+        return m;
+      }
+    }
+    return null;
+  }
+
+  private doBuildDrill(): void {
     if (this.mistakes.length === 0) {
       return;
     }
@@ -539,7 +591,8 @@ struct Index {
       return;
     }
     const sheet: StoredSheet | null = DrillFlow.buildDrillSheet(ProfileStore.scopeCurrent(ctx),
-      this.mistakes, this.strOf($r('app.string.mistakes_drill_title')));
+      this.mistakes, this.strOf($r('app.string.mistakes_drill_title')),
+      this.drillMode === 0 ? 'only' : 'mixed', this.drillRatio);
     if (sheet === null) {
       return;
     }
@@ -554,22 +607,12 @@ struct Index {
   GeneratorTab() {
     Column() {
       Scroll() {
-        Column({ space: 14 }) {
-          // 品牌行
-          Row() {
-            Text($r('app.string.app_name'))
-              .fontSize(22)
-              .fontWeight(FontWeight.Bold)
-              .fontColor($r('app.color.primary_text'))
-            Blank()
-            Text($r('app.string.offline_note'))
-              .fontSize(10)
-              .fontColor($r('app.color.hint_text'))
-              .backgroundColor($r('app.color.card_background'))
-              .borderRadius(9)
-              .padding({ left: 8, right: 8, top: 3, bottom: 3 })
-          }
-          .width('100%')
+        Column({ space: 20 }) {
+          // 品牌头（替代裸文字行，建立视觉锚点，D7）
+          BrandHeader({
+            name: this.strOf($r('app.string.app_name')),
+            badge: this.strOf($r('app.string.offline_note'))
+          })
 
           // 家庭成员快捷条（M7）
           MemberBar({
@@ -589,35 +632,35 @@ struct Index {
             onToday: () => this.generateToday()
           })
 
-          // 表单卡
-          Column({ space: 12 }) {
-            SectionLabel({ text: this.strOf($r('app.string.grade_label')) })
+          // 表单：拆为五张分组卡（消除"长列表卡"观感，D3）
+          // ① 年级
+          SectionCard({ icon: '🎓', title: this.strOf($r('app.string.grade_label')) }) {
             Segmented({
-              labels: [this.gradeLabel(1), this.gradeLabel(2), this.gradeLabel(3)],
+              labels: [this.gradeLabel(1), this.gradeLabel(2), this.gradeLabel(3),
+                this.gradeLabel(4), this.gradeLabel(5), this.gradeLabel(6)],
               selected: this.grade - 1,
               onPick: (i: number) => this.pickGrade(GRADES[i])
             })
+          }
 
-            Divider().color($r('app.color.border_color'))
-            SectionLabel({ text: this.strOf($r('app.string.type_label')) })
+          // ② 题型（统一 OptionChip，消除双套管子 D4）
+          SectionCard({ icon: '📚', title: this.strOf($r('app.string.type_label')) }) {
             Flex({ direction: FlexDirection.Row, wrap: FlexWrap.Wrap }) {
               ForEach(TypeFamilies.forGrade(this.grade), (f: TypeFamily) => {
-                Text(this.familyLabel(f))
-                  .fontSize(13)
-                  .fontWeight(this.selectedFamilies.indexOf(f.id) >= 0 ? FontWeight.Bold : FontWeight.Normal)
-                  .fontColor(this.selectedFamilies.indexOf(f.id) >= 0 ? $r('app.color.on_accent_text')
-                    : $r('app.color.chip_text'))
-                  .backgroundColor(this.selectedFamilies.indexOf(f.id) >= 0 ? $r('app.color.brand')
-                    : $r('app.color.chip_bg'))
-                  .borderRadius(14)
-                  .padding({ left: 14, right: 14, top: 7, bottom: 7 })
-                  .margin({ right: 8, bottom: 8 })
-                  .onClick(() => this.toggleFamily(f.id))
+                Column() {
+                  OptionChip({
+                    label: this.familyLabel(f),
+                    selected: this.selectedFamilies.indexOf(f.id) >= 0,
+                    onTap: () => this.toggleFamily(f.id)
+                  })
+                }
+                .margin({ right: 8, bottom: 8 })
               }, (f: TypeFamily) => f.id)
             }
+          }
 
-            Divider().color($r('app.color.border_color'))
-            SectionLabel({ text: this.strOf($r('app.string.difficulty_label')) })
+          // ③ 难度
+          SectionCard({ icon: '⚡', title: this.strOf($r('app.string.difficulty_label')) }) {
             Segmented({
               labels: [this.strOf($r('app.string.difficulty_base')), this.strOf($r('app.string.difficulty_plus'))],
               selected: this.diffPlus ? 1 : 0,
@@ -625,9 +668,10 @@ struct Index {
                 this.diffPlus = i === 1;
               }
             })
+          }
 
-            Divider().color($r('app.color.border_color'))
-            SectionLabel({ text: this.strOf($r('app.string.count_label')) })
+          // ④ 题量 · 列数
+          SectionCard({ icon: '🔢', title: this.strOf($r('app.string.count_label')) }) {
             Row({ space: 8 }) {
               ForEach(COUNT_OPTIONS, (n: number) => {
                 OptionChip({
@@ -639,7 +683,6 @@ struct Index {
                 })
               }, (n: number) => 'c' + n.toString())
             }
-
             SectionLabel({ text: this.strOf($r('app.string.columns_label')) })
             Row({ space: 8 }) {
               ForEach(COLUMN_OPTIONS, (n: number) => {
@@ -652,9 +695,10 @@ struct Index {
                 })
               }, (n: number) => 'k' + n.toString())
             }
+          }
 
-            Divider().color($r('app.color.border_color'))
-            SectionLabel({ text: this.strOf($r('app.string.advanced_label')) })
+          // ⑤ 高级（题头 / 答案页 / 多套同构卷）
+          SectionCard({ icon: '⚙️', title: this.strOf($r('app.string.advanced_label')) }) {
             ToggleRow({
               label: this.strOf($r('app.string.header_toggle_label')),
               isOn: this.headerOn,
@@ -669,7 +713,6 @@ struct Index {
                 this.answerOn = v;
               }
             })
-
             Row() {
               Text($r('app.string.sets_label'))
                 .fontSize(14)
@@ -691,11 +734,6 @@ struct Index {
               .fontSize(11)
               .fontColor($r('app.color.hint_text'))
           }
-          .width('100%')
-          .padding(16)
-          .backgroundColor($r('app.color.card_background'))
-          .borderRadius(16)
-          .alignItems(HorizontalAlign.Start)
         }
         .width('100%')
         .alignItems(HorizontalAlign.Center)
@@ -706,16 +744,13 @@ struct Index {
       .align(Alignment.Start)
       .edgeEffect(EdgeEffect.Spring)
 
-      // 固定底部主按钮
-      Button($r('app.string.generate_button'))
-        .width('100%')
-        .height(48)
-        .fontSize(16)
-        .fontWeight(FontWeight.Bold)
-        .backgroundColor($r('app.color.brand'))
-        .borderRadius(24)
-        .margin({ left: 16, right: 16, top: 8 })
-        .onClick(() => this.generate())
+      // 固定底部主操作
+      PrimaryButton({
+        label: this.strOf($r('app.string.generate_button')),
+        icon: '✨',
+        onTap: () => this.generate()
+      })
+      .margin({ left: 16, right: 16, top: 8, bottom: 8 })
     }
     .width('100%')
     .height('100%')
@@ -751,6 +786,8 @@ struct Index {
   MistakesTab() {
     MistakesPanel({
       mistakes: this.mistakes,
+      drillMode: this.drillMode,
+      drillRatio: this.drillRatio,
       titleLabel: this.strOf($r('app.string.tab_mistakes')),
       clearButton: this.strOf($r('app.string.mistakes_clear_button')),
       emptyTitle: this.strOf($r('app.string.mistakes_empty_title')),
@@ -758,8 +795,18 @@ struct Index {
       goLabel: this.strOf($r('app.string.go_generate')),
       drillTitle: this.strOf($r('app.string.mistakes_drill_title')),
       drillButton: this.strOf($r('app.string.mistakes_drill_button')),
+      modeLabels: [this.strOf($r('app.string.drill_mode_only')),
+        this.strOf($r('app.string.drill_mode_mixed'))],
+      ratioLabel: this.strOf($r('app.string.drill_ratio_label')),
+      ratioLabels: ['1:1', '1:2', '1:3'],
       onClear: () => this.confirmClearMistakes(),
       onDrill: () => this.buildDrill(),
+      onPickMode: (i: number) => {
+        this.drillMode = i;
+      },
+      onPickRatio: (i: number) => {
+        this.drillRatio = i;
+      },
       onGo: () => {
         this.currentTab = 0;
       }
@@ -770,62 +817,23 @@ struct Index {
 
   @Builder
   SettingsTab() {
-    Scroll() {
-      Column({ space: 12 }) {
-        // 家庭成员（M7）
-        MemberManage({
-          rows: this.memberRows(),
-          sectionLabel: this.strOf($r('app.string.member_section')),
-          renameLabel: this.strOf($r('app.string.member_rename')),
-          deleteLabel: this.strOf($r('app.string.library_delete')),
-          addLabel: this.strOf($r('app.string.member_add')),
-          onPick: (id: string) => this.applyMember(id),
-          onRename: (id: string) => this.openRenameMember(id),
-          onDelete: (id: string) => this.confirmDeleteMember(id),
-          onAdd: () => this.openAddMember()
-        })
-
-        Column({ space: 12 }) {
-          SectionLabel({ text: this.strOf($r('app.string.settings_display')) })
-          InfoRow({
-            label: this.strOf($r('app.string.settings_dark_mode')),
-            value: this.strOf($r('app.string.settings_dark_value'))
-          })
-        }
-        .width('100%')
-        .padding(16)
-        .backgroundColor($r('app.color.card_background'))
-        .borderRadius(16)
-        .alignItems(HorizontalAlign.Start)
-
-        Column({ space: 12 }) {
-          SectionLabel({ text: this.strOf($r('app.string.settings_about')) })
-          InfoRow({
-            label: this.strOf($r('app.string.buyout_note')),
-            value: this.strOf($r('app.string.settings_restore_note'))
-          })
-          InfoRow({
-            label: this.strOf($r('app.string.offline_note')),
-            value: this.strOf($r('app.string.settings_privacy_note'))
-          })
-          Divider().color($r('app.color.border_color'))
-          InfoRow({
-            label: this.strOf($r('app.string.version_label')),
-            value: this.strOf($r('app.string.version_value'))
-          })
-        }
-        .width('100%')
-        .padding(16)
-        .backgroundColor($r('app.color.card_background'))
-        .borderRadius(16)
-        .alignItems(HorizontalAlign.Start)
-      }
-      .width('100%')
-      .padding({ left: 16, right: 16, top: 14, bottom: 16 })
-    }
-    .width('100%')
-    .height('100%')
-    .edgeEffect(EdgeEffect.Spring)
+    SettingsPanel({
+      rows: this.memberRows(),
+      sectionLabel: this.strOf($r('app.string.member_section')),
+      renameLabel: this.strOf($r('app.string.member_rename')),
+      deleteLabel: this.strOf($r('app.string.library_delete')),
+      addLabel: this.strOf($r('app.string.member_add')),
+      backupSectionLabel: this.strOf($r('app.string.backup_section')),
+      backupExportLabel: this.strOf($r('app.string.backup_export')),
+      backupImportLabel: this.strOf($r('app.string.backup_import')),
+      displayLabel: this.strOf($r('app.string.settings_display')),
+      aboutLabel: this.strOf($r('app.string.settings_about')),
+      onPick: (id: string) => this.applyMember(id),
+      onRename: (id: string) => this.openRenameMember(id),
+      onDelete: (id: string) => this.confirmDeleteMember(id),
+      onAdd: () => this.openAddMember(),
+      onRestored: () => this.refreshFromIndex()
+    })
   }
 
   build() {

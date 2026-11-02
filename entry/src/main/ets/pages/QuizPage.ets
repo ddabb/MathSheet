@@ -1,8 +1,10 @@
 /**
- * 在线作答页（计划 §5.5）：设备上直接作答，替代"必须打印"的前置。
+ * 在线作答页（计划 §5.5；1.0.1 M3 限时挑战/停留时长/小数负号键盘）：
+ * 设备上直接作答，替代"必须打印"的前置。
  *
- * - 双模式：练习（逐题即时判分，答错当场看正确答案）/ 测验（全部作答完统一判分）；
- * - 应用内数字键盘（0-9/⌫/✓），不拉起系统输入法；
+ * - 三模式：练习（逐题即时判分，答错看正确答案，停留时长可选）/
+ *   测验（全部作答完统一判分）/ 限时挑战（倒计时，归零未答记错自动交卷）；
+ * - 应用内数字键盘（0-9/./−/⌫/✓），不拉起系统输入法（覆盖小数/负数题型）；
  * - 判分：QuizJudge 从物化题面/答案文本推导期望答案（历史卷免迁移）；
  * - 收尾一次性落库：marks + 用时（秒）整卷写入 + 错题本 commitSheet（幂等）；
  *   中途退出弹确认，放弃即丢弃（不落半程进度）；
@@ -21,13 +23,22 @@ import { QuizParams, PreviewParams } from '../common/PreviewParams';
 import { DrillFlow } from '../common/DrillFlow';
 import { Segmented, WIDE_CONTENT_MAX_VP } from '../components/UiKit';
 
+/** 限时挑战配额（秒/题，1.0.1 M3）。 */
+const TIMED_SEC_PER_ITEM: number = 6;
+/** 练习模式错题停留时长选项（毫秒；0 = 手动点"下一题"，1.0.1 M3）。 */
+const WRONG_STAY_OPTIONS: number[] = [0, 3000, 5000];
+
 @Entry
 @Component
 struct QuizPage {
   /** 0=模式选择 1=作答中 2=练习答错反馈 3=结果页。 */
   @State phase: number = 0;
-  /** 0=练习 1=测验。 */
+  /** 0=练习 1=测验 2=限时挑战（1.0.1 M3）。 */
   @State mode: number = 0;
+  /** 练习模式错题停留时长（毫秒；0 = 手动，1.0.1 M3）。 */
+  @State wrongStayMs: number = 0;
+  /** 限时挑战剩余秒数（1.0.1 M3）。 */
+  @State remainingSec: number = 0;
   @State idx: number = 0;
   @State input: string = '';
   /** 练习模式答对瞬间的绿色反馈（自动进入下一题）。 */
@@ -42,6 +53,10 @@ struct QuizPage {
   private storeScope: MemberScope = new MemberScope('');
   private backLabelStr: string = '';
   private advanceTimer: number = -1;
+  /** 限时挑战倒计时 interval 句柄。 */
+  private countdownTimer: number = -1;
+  /** 练习模式错题自动前进 timer 句柄。 */
+  private wrongStayTimer: number = -1;
 
   aboutToAppear(): void {
     const raw: QuizParams = this.getUIContext().getRouter().getParams() as QuizParams;
@@ -87,6 +102,8 @@ struct QuizPage {
 
   aboutToDisappear(): void {
     this.clearAdvanceTimer();
+    this.clearCountdownTimer();
+    this.clearWrongStayTimer();
   }
 
   // ---------- 作答交互 ----------
@@ -98,16 +115,74 @@ struct QuizPage {
     }
   }
 
+  private clearCountdownTimer(): void {
+    if (this.countdownTimer >= 0) {
+      clearInterval(this.countdownTimer);
+      this.countdownTimer = -1;
+    }
+  }
+
+  private clearWrongStayTimer(): void {
+    if (this.wrongStayTimer >= 0) {
+      clearTimeout(this.wrongStayTimer);
+      this.wrongStayTimer = -1;
+    }
+  }
+
   private start(): void {
     this.startedAt = Date.now();
     this.idx = 0;
     this.input = '';
     this.phase = 1;
+    if (this.mode === 2) {
+      this.beginCountdown();
+    }
+  }
+
+  /** 限时挑战倒计时（1.0.1 M3）：题数 × 6 秒，归零未答记错并自动交卷。 */
+  private beginCountdown(): void {
+    this.clearCountdownTimer();
+    const s: StoredSheet | null = this.sheet;
+    const limitSec: number = s === null ? 0 : Math.max(30, s.items.length * TIMED_SEC_PER_ITEM);
+    this.remainingSec = limitSec;
+    this.countdownTimer = setInterval(() => {
+      this.remainingSec--;
+      if (this.remainingSec <= 0) {
+        this.clearCountdownTimer();
+        this.timeUp();
+      }
+    }, 1000);
+  }
+
+  /** 时间到：未答题记错 → 提示 → 直接交卷（已答保留判分结果）。 */
+  private timeUp(): void {
+    if (this.phase !== 1 && this.phase !== 2) {
+      return;
+    }
+    for (let i: number = 0; i < this.marks.length; i++) {
+      if (this.marks[i] === 0) {
+        this.marks[i] = 2;
+      }
+    }
+    this.recount();
+    this.getUIContext().getPromptAction()
+      .showToast({ message: $r('app.string.quiz_timed_up_toast'), duration: 2000 });
+    this.finish();
   }
 
   private digit(d: string): void {
     if (this.phase !== 1 || this.flashOk || this.input.length >= QuizJudge.MAX_INPUT_LEN) {
       return;
+    }
+    // 小数点/负号约束（1.0.1 M3）：'.' 至多一个且前有数字；'−' 仅能开头
+    if (d === '.') {
+      if (this.input.length === 0 || this.input.indexOf('.') >= 0 || this.input === '−') {
+        return;
+      }
+    } else if (d === '−') {
+      if (this.input.length > 0) {
+        return;
+      }
     }
     this.input += d;
   }
@@ -132,12 +207,12 @@ struct QuizPage {
     const ok: boolean = QuizJudge.isCorrect(this.input, this.expected[i]);
     this.marks[i] = ok ? 1 : 2;
     this.recount();
-    if (this.mode === 1) {
-      // 测验：不反馈，直接下一题
+    if (this.mode === 1 || this.mode === 2) {
+      // 测验/限时挑战：不反馈，直接下一题
       this.advance();
       return;
     }
-    // 练习：答对闪绿自动前进；答错停板看正确答案
+    // 练习：答对闪绿自动前进；答错停板看正确答案（停留时长可选，1.0.1 M3）
     if (ok) {
       this.flashOk = true;
       this.clearAdvanceTimer();
@@ -147,6 +222,13 @@ struct QuizPage {
       }, 650);
     } else {
       this.phase = 2;
+      if (this.wrongStayMs > 0) {
+        this.clearWrongStayTimer();
+        this.wrongStayTimer = setTimeout(() => {
+          this.wrongStayTimer = -1;
+          this.advance();
+        }, this.wrongStayMs);
+      }
     }
   }
 
@@ -154,6 +236,7 @@ struct QuizPage {
     if (this.sheet === null) {
       return;
     }
+    this.clearWrongStayTimer();
     this.flashOk = false;
     this.input = '';
     this.phase = 1; // 答错反馈页“下一题”需返回作答态（测验/闪绿路径本身已是 1，重复赋值无副作用）
@@ -186,6 +269,8 @@ struct QuizPage {
     if (s === null) {
       return;
     }
+    this.clearCountdownTimer();
+    this.clearWrongStayTimer();
     this.elapsedSec = Math.max(1, Math.round((Date.now() - this.startedAt) / 1000));
     s.marks = this.marks.slice();
     s.durationSec = this.elapsedSec;
@@ -254,6 +339,8 @@ struct QuizPage {
         value: $r('app.string.quiz_exit_leave'),
         action: () => {
           this.clearAdvanceTimer();
+          this.clearCountdownTimer();
+          this.clearWrongStayTimer();
           this.back();
         }
       }
@@ -292,7 +379,8 @@ struct QuizPage {
       return '';
     }
     const res: Resource = this.mode === 0 ? $r('app.string.quiz_mode_practice_desc')
-      : $r('app.string.quiz_mode_test_desc');
+      : this.mode === 1 ? $r('app.string.quiz_mode_test_desc')
+        : $r('app.string.quiz_mode_timed_desc');
     return ctx.resourceManager.getStringSync(res.id);
   }
 
@@ -302,8 +390,35 @@ struct QuizPage {
       return '';
     }
     const res: Resource = m === 0 ? $r('app.string.quiz_mode_practice')
-      : $r('app.string.quiz_mode_test');
+      : m === 1 ? $r('app.string.quiz_mode_test')
+        : $r('app.string.quiz_mode_timed');
     return ctx.resourceManager.getStringSync(res.id);
+  }
+
+  /** 限时挑战剩余时间（mm:ss，1.0.1 M3）。 */
+  private timeLeftText(): string {
+    const ctx: Context | undefined = this.getUIContext().getHostContext();
+    if (ctx === undefined) {
+      return '';
+    }
+    const sec: number = Math.max(0, this.remainingSec);
+    const mm: number = Math.floor(sec / 60);
+    const ss: number = sec % 60;
+    const mmS: string = mm < 10 ? `0${mm}` : `${mm}`;
+    const ssS: string = ss < 10 ? `0${ss}` : `${ss}`;
+    return ctx.resourceManager.getStringSync($r('app.string.quiz_time_left').id, `${mmS}:${ssS}`);
+  }
+
+  /** 练习模式错题停留时长选项文案（1.0.1 M3）。 */
+  private wrongStayLabel(ms: number): string {
+    const ctx: Context | undefined = this.getUIContext().getHostContext();
+    if (ctx === undefined) {
+      return '';
+    }
+    if (ms === 0) {
+      return ctx.resourceManager.getStringSync($r('app.string.quiz_wrong_stay_manual').id);
+    }
+    return ctx.resourceManager.getStringSync($r('app.string.quiz_wrong_stay_sec').id, ms / 1000);
   }
 
   private summaryText(): string {
@@ -374,28 +489,40 @@ struct QuizPage {
   @Builder
   DigitKey(label: string) {
     Text(label)
-      .fontSize(24)
+      .fontSize(26)
       .fontWeight(FontWeight.Bold)
-      .fontColor($r('app.color.chip_text'))
-      .backgroundColor($r('app.color.chip_bg'))
+      .fontColor($r('app.color.primary_text'))
+      .backgroundColor($r('app.color.card_background'))
       .height(54)
       .layoutWeight(1)
       .textAlign(TextAlign.Center)
-      .borderRadius(12)
+      .borderRadius($r('app.float.radius_lg'))
+      .border({ width: 1, color: $r('app.color.border_color') })
+      .shadow({
+        radius: $r('app.float.shadow_card_radius'),
+        offsetY: $r('app.float.shadow_card_offset_y'),
+        color: $r('app.color.shadow_color')
+      })
       .onClick(() => this.digit(label))
   }
 
   @Builder
   ActionKey(label: string, filled: boolean, onTap: () => void) {
     Text(label)
-      .fontSize(24)
+      .fontSize(26)
       .fontWeight(FontWeight.Bold)
-      .fontColor(filled ? $r('app.color.on_accent_text') : $r('app.color.chip_text'))
-      .backgroundColor(filled ? $r('app.color.brand') : $r('app.color.chip_bg'))
+      .fontColor(filled ? $r('app.color.on_accent_text') : $r('app.color.primary_text'))
+      .backgroundColor(filled ? $r('app.color.brand') : $r('app.color.card_background'))
       .height(54)
       .layoutWeight(1)
       .textAlign(TextAlign.Center)
-      .borderRadius(12)
+      .borderRadius($r('app.float.radius_lg'))
+      .border({ width: 1, color: $r('app.color.border_color') })
+      .shadow({
+        radius: $r('app.float.shadow_card_radius'),
+        offsetY: $r('app.float.shadow_card_offset_y'),
+        color: $r('app.color.shadow_color')
+      })
       .onClick(() => onTap())
   }
 
@@ -420,9 +547,15 @@ struct QuizPage {
         this.DigitKey('9')
       }
       .width('100%')
+      // 1.0.1 M3：小数点 + 负号（覆盖小数/负数题型）
+      Row({ space: 10 }) {
+        this.DigitKey('.')
+        this.DigitKey('0')
+        this.DigitKey('−')
+      }
+      .width('100%')
       Row({ space: 10 }) {
         this.ActionKey('⌫', false, (): void => this.backspace())
-        this.DigitKey('0')
         this.ActionKey('✓', true, (): void => this.submit())
       }
       .width('100%')
@@ -477,7 +610,7 @@ struct QuizPage {
         .fontSize(14)
         .fontColor($r('app.color.secondary_text'))
       Segmented({
-        labels: [this.modeLabel(0), this.modeLabel(1)],
+        labels: [this.modeLabel(0), this.modeLabel(1), this.modeLabel(2)],
         selected: this.mode,
         onPick: (i: number) => {
           this.mode = i;
@@ -488,6 +621,28 @@ struct QuizPage {
         .fontColor($r('app.color.hint_text'))
         .textAlign(TextAlign.Center)
         .padding({ left: 32, right: 32 })
+      // 练习模式：错题停留时长可选（1.0.1 M3）
+      if (this.mode === 0) {
+        Row({ space: 8 }) {
+          Text($r('app.string.quiz_wrong_stay_label'))
+            .fontSize(12)
+            .fontColor($r('app.color.secondary_text'))
+          ForEach(WRONG_STAY_OPTIONS, (ms: number) => {
+            Text(this.wrongStayLabel(ms))
+              .fontSize(13)
+              .fontWeight(this.wrongStayMs === ms ? FontWeight.Bold : FontWeight.Normal)
+              .fontColor(this.wrongStayMs === ms ? $r('app.color.on_accent_text')
+                : $r('app.color.chip_text'))
+              .backgroundColor(this.wrongStayMs === ms ? $r('app.color.brand')
+                : $r('app.color.chip_bg'))
+              .borderRadius(14)
+              .padding({ left: 12, right: 12, top: 6, bottom: 6 })
+              .onClick(() => {
+                this.wrongStayMs = ms;
+              })
+          }, (ms: number) => `${ms}-${this.wrongStayMs === ms}`)
+        }
+      }
       Button($r('app.string.quiz_start'))
         .fontSize(16)
         .fontWeight(FontWeight.Bold)
@@ -512,6 +667,16 @@ struct QuizPage {
       Text(`${this.idx + 1} / ${this.sheet === null ? 0 : this.sheet.items.length}`)
         .fontSize(13)
         .fontColor($r('app.color.hint_text'))
+      // 限时挑战倒计时（1.0.1 M3；末 10 秒红色警示）
+      if (this.mode === 2) {
+        Text(this.timeLeftText())
+          .fontSize(15)
+          .fontWeight(FontWeight.Bold)
+          .fontColor(this.remainingSec <= 10 ? $r('app.color.danger_red') : $r('app.color.brand'))
+          .backgroundColor($r('app.color.brand_tint'))
+          .borderRadius(13)
+          .padding({ left: 14, right: 14, top: 4, bottom: 4 })
+      }
       Text(this.sheet === null ? '' : this.sheet.items[this.idx].q)
         .fontSize(32)
         .fontWeight(FontWeight.Bold)

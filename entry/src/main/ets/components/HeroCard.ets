@@ -19,10 +19,15 @@ export struct HeroCard {
     Column({ space: 12 }) {
       Row() {
         Column({ space: 3 }) {
-          Text($r('app.string.daily_title'))
-            .fontSize(17)
-            .fontWeight(FontWeight.Bold)
-            .fontColor($r('app.color.on_accent_text'))
+          Row({ space: 6 }) {
+            Text('📅')
+              .fontSize(17)
+              .fontColor($r('app.color.on_accent_text'))
+            Text($r('app.string.daily_title'))
+              .fontSize(17)
+              .fontWeight(FontWeight.Bold)
+              .fontColor($r('app.color.on_accent_text'))
+          }
           Text(`${this.dateText} · ${this.streakText}`)
             .fontSize(12)
             .fontColor($r('app.color.on_accent_text'))
@@ -39,12 +44,17 @@ export struct HeroCard {
         .constraintSize({ minHeight: 16 })
       Button($r('app.string.daily_generate_button'))
         .width('100%')
-        .height(40)
-        .fontSize(15)
+        .height($r('app.float.btn_height'))
+        .fontSize(16)
         .fontWeight(FontWeight.Bold)
         .fontColor($r('app.color.brand'))
         .backgroundColor($r('app.color.card_background'))
-        .borderRadius(20)
+        .borderRadius($r('app.float.radius_xl'))
+        .shadow({
+          radius: $r('app.float.shadow_card_radius'),
+          offsetY: $r('app.float.shadow_card_offset_y'),
+          color: $r('app.color.shadow_color')
+        })
         .onClick(() => this.onToday())
     }
     .width('100%')
