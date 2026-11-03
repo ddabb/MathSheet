@@ -30,7 +30,7 @@
     },
     {
       "name": "version_value",
-      "value": "v1.1.0"
+      "value": "v1.2.0"
     },
     {
       "name": "grade_label",
@@ -241,12 +241,16 @@
       "value": "显示"
     },
     {
-      "name": "settings_dark_mode",
-      "value": "深色模式"
+      "name": "settings_color_mode_label",
+      "value": "外观模式"
     },
     {
-      "name": "settings_dark_value",
-      "value": "跟随系统"
+      "name": "settings_mode_light",
+      "value": "浅色（跟随系统）"
+    },
+    {
+      "name": "settings_mode_dark",
+      "value": "深色（跟随系统）"
     },
     {
       "name": "settings_about",
@@ -279,6 +283,14 @@
     {
       "name": "export_pdf_fail",
       "value": "PDF 生成失败，请重试"
+    },
+    {
+      "name": "pdf_num_sep_toggle",
+      "value": "题目与答案页独立页码"
+    },
+    {
+      "name": "pdf_num_sep_hint",
+      "value": "开启后答案页页码从第 1 页重新计数，与题页各自编号"
     },
     {
       "name": "save_to_files",

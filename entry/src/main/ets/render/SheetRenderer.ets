@@ -45,6 +45,8 @@ export class PageRenderRequest {
 export class SheetRenderer {
   /** 答案页红色（#DC2626）。 */
   private static readonly ANSWER_RED: common2D.Color = { alpha: 255, red: 220, green: 38, blue: 38 };
+  /** 答案页网格线浅灰（#D1D5DB）：衬红色答案，隔断相邻题答案防串行。 */
+  private static readonly GRID_GRAY: common2D.Color = { alpha: 255, red: 209, green: 213, blue: 219 };
   /** 题目黑色。 */
   private static readonly TEXT_BLACK: common2D.Color = { alpha: 255, red: 33, green: 33, blue: 33 };
   /** 打印字体（Noto Sans SC = 思源黑体 Google 分发版，OFL；子集含数学符号 −×÷□，
@@ -110,6 +112,9 @@ export class SheetRenderer {
       }
     }
     const font: drawing.Font = SheetRenderer.makeFont(Math.round(req.spec.fontSize * s));
+    if (req.showAnswers) {
+      SheetRenderer.drawAnswerGrid(canvas, req, page, s, offsetY);
+    }
     const brush: drawing.Brush = new drawing.Brush();
     brush.setColor(req.showAnswers ? SheetRenderer.ANSWER_RED : SheetRenderer.TEXT_BLACK);
     canvas.attachBrush(brush);
@@ -141,6 +146,40 @@ export class SheetRenderer {
         Math.round(SheetLayout.FOOTER_FONT * s),
         pageWidth, Math.round(req.layout.footerBaselineY * s) + offsetY, SheetRenderer.TEXT_BLACK);
     }
+  }
+
+  /**
+   * 答案页网格线：内容区画行列网格（行距 = rowHeight、列距 = columnWidth，与布局引擎同源），
+   * 每题答案落在独立格内，避免相邻题答案串行误读；题页不画（留白供作答）。
+   */
+  private static drawAnswerGrid(canvas: drawing.Canvas, req: PageRenderRequest,
+                                page: PageLayout, s: number, offsetY: number): void {
+    const top: number = Math.round((SheetLayout.MARGIN
+      + (page.hasHeader ? SheetLayout.HEADER_H : 0)) * s) + offsetY;
+    const bottom: number = Math.round((SheetLayout.PAGE_H
+      - SheetLayout.MARGIN - SheetLayout.FOOTER_H) * s) + offsetY;
+    const left: number = Math.round(SheetLayout.MARGIN * s);
+    const columns: number = Math.max(1, Math.min(4, Math.floor(req.spec.columns)));
+    const colW: number = req.layout.columnWidth * s;
+    const right: number = Math.round(left + columns * colW);
+    const rowH: number = req.layout.rowHeight * s;
+    const pen: drawing.Pen = new drawing.Pen();
+    pen.setColor(SheetRenderer.GRID_GRAY);
+    pen.setStrokeWidth(Math.max(1, Math.round(1.5 * s)));
+    canvas.attachPen(pen);
+    canvas.drawLine(left, top, right, top);
+    canvas.drawLine(left, bottom, right, bottom);
+    canvas.drawLine(left, top, left, bottom);
+    canvas.drawLine(right, top, right, bottom);
+    for (let y: number = top + rowH; y < bottom - 1; y += rowH) {
+      const yy: number = Math.round(y);
+      canvas.drawLine(left, yy, right, yy);
+    }
+    for (let c: number = 1; c < columns; c++) {
+      const xx: number = Math.round(left + c * colW);
+      canvas.drawLine(xx, top, xx, bottom);
+    }
+    canvas.detachPen();
   }
 
   /**

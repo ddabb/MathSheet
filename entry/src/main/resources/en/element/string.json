@@ -30,7 +30,7 @@
     },
     {
       "name": "version_value",
-      "value": "v1.1.0"
+      "value": "v1.2.0"
     },
     {
       "name": "grade_label",
@@ -241,12 +241,16 @@
       "value": "Display"
     },
     {
-      "name": "settings_dark_mode",
-      "value": "Dark mode"
+      "name": "settings_color_mode_label",
+      "value": "Appearance"
     },
     {
-      "name": "settings_dark_value",
-      "value": "Follow system"
+      "name": "settings_mode_light",
+      "value": "Light (follows system)"
+    },
+    {
+      "name": "settings_mode_dark",
+      "value": "Dark (follows system)"
     },
     {
       "name": "settings_about",
@@ -279,6 +283,14 @@
     {
       "name": "export_pdf_fail",
       "value": "Failed to compose PDF, please retry"
+    },
+    {
+      "name": "pdf_num_sep_toggle",
+      "value": "Separate numbering for questions & answers"
+    },
+    {
+      "name": "pdf_num_sep_hint",
+      "value": "Answer pages restart from page 1, numbered separately from question pages"
     },
     {
       "name": "save_to_files",

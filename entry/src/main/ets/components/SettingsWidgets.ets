@@ -11,6 +11,7 @@
 import { BackupStore } from '../common/BackupStore';
 import { ExportUtil, ExportOutcome } from '../common/ExportUtil';
 import { resourceManager } from '@kit.LocalizationKit';
+import { common, ConfigurationConstant } from '@kit.AbilityKit';
 import { MemberRowModel, MemberManage } from './MemberWidgets';
 import { SectionLabel, InfoRow, GhostButton, PrimaryButton } from './UiKit';
 
@@ -42,6 +43,17 @@ export struct SettingsPanel {
     const rm: resourceManager.ResourceManager | undefined =
       this.getUIContext().getHostContext()?.resourceManager;
     return rm === undefined ? '' : rm.getStringSync(res.id);
+  }
+
+  /** 当前外观模式文案（浅色/深色 · 跟随系统）：修复浅色模式下原静态“深色模式”文案错误。 */
+  private colorModeText(): string {
+    const ctx: common.Context | undefined = this.getUIContext().getHostContext();
+    const abilityCtx: common.UIAbilityContext | undefined =
+      ctx !== undefined ? ctx as common.UIAbilityContext : undefined;
+    const dark: boolean = abilityCtx !== undefined
+      && abilityCtx.config.colorMode === ConfigurationConstant.ColorMode.COLOR_MODE_DARK;
+    return this.strOf(dark ? $r('app.string.settings_mode_dark')
+      : $r('app.string.settings_mode_light'));
   }
 
   /** 全量备份 → 沙箱临时文件 → 系统保存器（用户选位置；免权限）。 */
@@ -164,8 +176,8 @@ export struct SettingsPanel {
         Column({ space: 12 }) {
           SectionLabel({ text: this.displayLabel })
           InfoRow({
-            label: this.strOf($r('app.string.settings_dark_mode')),
-            value: this.strOf($r('app.string.settings_dark_value'))
+            label: this.strOf($r('app.string.settings_color_mode_label')),
+            value: this.colorModeText()
           })
         }
         .width('100%')

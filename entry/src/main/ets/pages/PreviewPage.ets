@@ -25,7 +25,8 @@ import { SheetStore } from '../core/SheetStore';
 import { MemberScope } from '../core/ProfileCodec';
 import { ProfileStore } from '../core/ProfileStore';
 import { ExportUtil, ExportOutcome } from '../common/ExportUtil';
-import { WIDE_CONTENT_MAX_VP, Toolbar, GhostButton, PrimaryButton } from '../components/UiKit';
+import { WIDE_CONTENT_MAX_VP, Toolbar, PrimaryButton } from '../components/UiKit';
+import { PreviewActions, PdfOptionsDialog, ExportingOverlay } from '../components/PreviewOverlays';
 
 /** 单套卷数据（题目 + 版面 + 该套规格；A/B/C/D 共享参数不同种子）。 */
 class SheetSetData {
@@ -53,6 +54,10 @@ struct PreviewPage {
   @State totalPages: number = 0;
   @State pageBitmaps: Array<Array<image.PixelMap | undefined>> = [];
   @State exporting: number = 0;
+  /** 导出 PDF 选项弹层（独立页码开关）。 */
+  @State pdfOptionsOpen: boolean = false;
+  /** 题目页与答案页是否各自独立计数页码（导出 PDF 选项，会话内记忆）。 */
+  @State pdfNumSep: boolean = false;
   /** 当前套是否可在线作答（未批改）。 */
   @State quizReady: boolean = false;
 
@@ -447,8 +452,9 @@ struct PreviewPage {
     return id !== undefined ? `sheet_${id}` : `sheet_${Date.now().toString(36)}`;
   }
 
-  /** 当前套全部页请求（题页 + 答案页，顺序与预览一致）。 */
-  private exportRequests(): PageRenderRequest[] {
+  /** 当前套全部页请求（题页 + 答案页，顺序与预览一致）。
+   * sepNumbering：题目页与答案页各自独立计数（页码与总数按区段计算）。 */
+  private exportRequests(sepNumbering: boolean): PageRenderRequest[] {
     const sd: SheetSetData | undefined = this.setsData[this.currentSet];
     if (sd === undefined) {
       return [];
@@ -458,9 +464,16 @@ struct PreviewPage {
     for (let g = 0; g < total; g++) {
       const isAnswer: boolean = g >= sd.qPages;
       const inSheet: number = isAnswer ? g - sd.qPages : g;
+      let label: string;
+      if (sepNumbering) {
+        const scopeTotal: number = isAnswer ? total - sd.qPages : sd.qPages;
+        label = this.fmtPageLabel(this.currentSet, inSheet + 1, scopeTotal);
+      } else {
+        label = this.fmtPageLabel(this.currentSet, g + 1, total);
+      }
       reqs.push(new PageRenderRequest(sd.items, sd.layout,
         isAnswer ? sd.answerSpec : sd.spec, inSheet,
-        this.fmtPageLabel(this.currentSet, g + 1, total),
+        label,
         isAnswer ? '' : this.fieldsText, isAnswer, this.renderScale));
     }
     return reqs;
@@ -474,8 +487,18 @@ struct PreviewPage {
     if (this.exporting !== 0) {
       return;
     }
+    const sd: SheetSetData | undefined = this.setsData[this.currentSet];
+    if (sd === undefined) {
+      return;
+    }
+    this.pdfOptionsOpen = true;
+  }
+
+  /** 导出 PDF 选项确认：按当前开关状态合成（题目/答案页可独立页码）。 */
+  private confirmExportPdf(): void {
+    this.pdfOptionsOpen = false;
     const ctx: Context | undefined = this.ctx();
-    const reqs: PageRenderRequest[] = this.exportRequests();
+    const reqs: PageRenderRequest[] = this.exportRequests(this.pdfNumSep);
     if (ctx === undefined || reqs.length === 0) {
       return;
     }
@@ -532,7 +555,7 @@ struct PreviewPage {
       return;
     }
     const ctx: Context | undefined = this.ctx();
-    const reqs: PageRenderRequest[] = this.exportRequests();
+    const reqs: PageRenderRequest[] = this.exportRequests(false);
     if (ctx === undefined || reqs.length === 0) {
       return;
     }
@@ -576,7 +599,7 @@ struct PreviewPage {
       return;
     }
     const ctx: Context | undefined = this.ctx();
-    const reqs: PageRenderRequest[] = this.exportRequests();
+    const reqs: PageRenderRequest[] = this.exportRequests(false);
     if (ctx === undefined || reqs.length === 0) {
       return;
     }
@@ -691,28 +714,15 @@ struct PreviewPage {
       .fontColor($r('app.color.secondary_text'))
   }
 
+  /** 工具条右侧操作：紧凑药丸组（统一样式见 PreviewActions）。 */
   @Builder
   actionsTrailing() {
-    Row({ space: 10 }) {
-      if (!this.storedMode) {
-        GhostButton({
-          label: this.strOf($r('app.string.change_batch')),
-          icon: '🔄',
-          onTap: () => this.changeBatch()
-        })
-      }
-      GhostButton({
-        label: this.strOf($r('app.string.save_image_button')),
-        icon: '🖼️',
-        onTap: () => this.saveImage()
-      })
-      PrimaryButton({
-        label: this.strOf($r('app.string.export_pdf_button')),
-        icon: '📄',
-        onTap: () => this.exportPdf()
-      })
-    }
-    .alignItems(VerticalAlign.Center)
+    PreviewActions({
+      showChangeBatch: !this.storedMode,
+      onChangeBatch: (): void => this.changeBatch(),
+      onSaveImage: (): void => this.saveImage(),
+      onExportPdf: (): void => this.exportPdf()
+    })
   }
 
   build() {
@@ -832,27 +842,26 @@ struct PreviewPage {
       .height('100%')
       .constraintSize({ maxWidth: WIDE_CONTENT_MAX_VP })
 
+      // 导出 PDF 选项弹层（题目/答案页独立页码开关）
+      if (this.pdfOptionsOpen) {
+        PdfOptionsDialog({
+          numSep: this.pdfNumSep,
+          toggleLabel: this.strOf($r('app.string.pdf_num_sep_toggle')),
+          onFlip: (v: boolean): void => {
+            this.pdfNumSep = v;
+          },
+          onCancel: (): void => {
+            this.pdfOptionsOpen = false;
+          },
+          onConfirm: (): void => {
+            this.confirmExportPdf();
+          }
+        })
+      }
+
       // 导出遮罩（居中圆角卡片，配色与 Token 一致）
       if (this.exporting !== 0) {
-        Column() {
-          Column({ space: 12 }) {
-            LoadingProgress()
-              .width(42)
-              .height(42)
-              .color(Color.White)
-            Text(this.exporting === 1 ? $r('app.string.export_pdf_composing')
-              : $r('app.string.save_image_composing'))
-              .fontSize(14)
-              .fontColor(Color.White)
-          }
-          .padding(24)
-          .backgroundColor('#CC1A1D29')
-          .borderRadius($r('app.float.radius_xl'))
-        }
-        .width('100%')
-        .height('100%')
-        .justifyContent(FlexAlign.Center)
-        .backgroundColor('#66000000')
+        ExportingOverlay({ exporting: this.exporting })
       }
     }
     .width('100%')
